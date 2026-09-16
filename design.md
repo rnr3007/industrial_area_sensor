@@ -99,7 +99,7 @@ which data they show, not in structural voice.
 
 ## Exports
 
-### tokens.css (mirrors `ias_frontend/src/assets/styles.css` `:root`)
+### tokens.css (mirrors `ias_prototype_origin/ias_frontend/src/assets/styles.css` `:root`)
 
 ```css
 :root {

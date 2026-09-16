@@ -5,6 +5,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import config from './config/index.js';
 import routes from './routes/index.js';
+import logger from './utils/logger.js';
 import { notFound, errorHandler } from './middleware/error.js';
 
 export function createApp() {
@@ -30,7 +31,13 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true }));
 
   if (config.env !== 'test') {
-    app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
+    // Every request lands in logs/info.txt (one line per API hit), on top of
+    // the usual console output.
+    app.use(
+      morgan(':method :url :status :res[content-length]b - :response-time ms', {
+        stream: { write: (line) => logger.info(line.trim()) }
+      })
+    );
   }
 
   app.use('/api', routes);

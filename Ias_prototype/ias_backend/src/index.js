@@ -2,11 +2,13 @@ import http from 'node:http';
 import config from './config/index.js';
 import logger from './utils/logger.js';
 import { createApp } from './app.js';
+import { connectDb, disconnectDb } from './config/db.js';
 import { initRealtime } from './services/realtime.service.js';
 import { initMqtt, closeMqtt } from './services/mqtt.service.js';
 import { seedAdmin } from './store/users.store.js';
 
 async function bootstrap() {
+  await connectDb();
   await seedAdmin();
 
   const app = createApp();
@@ -22,7 +24,7 @@ async function bootstrap() {
   const shutdown = async (signal) => {
     logger.info(`${signal} received, shutting down`);
     server.close();
-    await closeMqtt();
+    await Promise.allSettled([closeMqtt(), disconnectDb()]);
     process.exit(0);
   };
 

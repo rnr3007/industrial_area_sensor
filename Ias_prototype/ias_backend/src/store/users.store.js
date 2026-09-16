@@ -1,128 +1,143 @@
-import path from 'node:path';
-import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
-import { JsonStore } from './json-store.js';
+import User, { ROLES, PASSWORD_ROLES, MAGIC_LINK_ROLES } from '../models/User.js';
 
-export const ROLES = ['admin', 'operator', 'guest_operator'];
-// Only admin accounts authenticate with a password; the rest are magic-link only.
-export const PASSWORD_ROLES = ['admin'];
-export const MAGIC_LINK_ROLES = ['operator', 'guest_operator'];
-
-const store = new JsonStore(path.join(config.dataDir, 'users.json'), { users: [] });
+export { ROLES, PASSWORD_ROLES, MAGIC_LINK_ROLES };
 
 const normalizeEmail = (email) => String(email).trim().toLowerCase();
 
-/** Strips the password hash before a record ever leaves this module. */
-function toPublic(user) {
-  if (!user) return null;
-  // eslint-disable-next-line no-unused-vars
-  const { passwordHash, ...rest } = user;
-  return rest;
+/** Plain object including the hash - only used internally for password checks. */
+function withHash(doc) {
+  if (!doc) return null;
+  return {
+    id: String(doc._id),
+    email: doc.email,
+    name: doc.name,
+    role: doc.role,
+    passwordHash: doc.passwordHash,
+    active: doc.active,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    lastLoginAt: doc.lastLoginAt
+  };
 }
 
 export async function listUsers() {
-  const { users } = await store.read();
-  return users.map(toPublic);
+  const users = await User.find().sort({ createdAt: 1 });
+  return users.map((u) => u.toJSON());
 }
 
 export async function findUserByEmail(email, { includePasswordHash = false } = {}) {
-  const { users } = await store.read();
-  const user = users.find((u) => u.email === normalizeEmail(email));
-  return includePasswordHash ? user || null : toPublic(user);
+  const query = User.findOne({ email: normalizeEmail(email) });
+  if (includePasswordHash) {
+    const doc = await query.select('+passwordHash');
+    return withHash(doc);
+  }
+  const doc = await query;
+  return doc ? doc.toJSON() : null;
 }
 
 /** Only ever called with an id taken from a verified JWT `sub` claim. */
 export async function findUserById(id, { includePasswordHash = false } = {}) {
-  const { users } = await store.read();
-  const user = users.find((u) => u.id === id);
-  return includePasswordHash ? user || null : toPublic(user);
+  let query;
+  try {
+    query = User.findById(id);
+  } catch {
+    return null;
+  }
+  if (includePasswordHash) {
+    const doc = await query.select('+passwordHash').catch(() => null);
+    return withHash(doc);
+  }
+  const doc = await query.catch(() => null);
+  return doc ? doc.toJSON() : null;
 }
 
 export async function createUser({ email, name, role, password, active = true }) {
   if (!ROLES.includes(role)) throw new Error(`Invalid role: ${role}`);
   const normalized = normalizeEmail(email);
 
-  return store.mutate(async (data) => {
-    if (data.users.some((u) => u.email === normalized)) {
+  if (await User.findOne({ email: normalized })) {
+    throw Object.assign(new Error('A user with this email already exists'), { status: 409 });
+  }
+
+  const user = new User({
+    email: normalized,
+    name: name?.trim() || normalized,
+    role,
+    passwordHash: PASSWORD_ROLES.includes(role) && password ? await bcrypt.hash(password, 12) : null,
+    active
+  });
+
+  try {
+    await user.save();
+  } catch (err) {
+    if (err.code === 11000) {
       throw Object.assign(new Error('A user with this email already exists'), { status: 409 });
     }
+    throw err;
+  }
 
-    const now = new Date().toISOString();
-    const user = {
-      // Random, non-sequential id - guessing/incrementing another user's id
-      // gets you nowhere, and every /api/users/:id route is admin-gated anyway.
-      id: crypto.randomUUID(),
-      email: normalized,
-      name: name?.trim() || normalized,
-      role,
-      passwordHash: PASSWORD_ROLES.includes(role) && password ? await bcrypt.hash(password, 12) : null,
-      active,
-      createdAt: now,
-      updatedAt: now,
-      lastLoginAt: null
-    };
-
-    data.users.push(user);
-    return { data, result: toPublic(user) };
-  });
+  return user.toJSON();
 }
 
 export async function updateUser(id, patch) {
-  return store.mutate(async (data) => {
-    const index = data.users.findIndex((u) => u.id === id);
-    if (index === -1) throw Object.assign(new Error('User not found'), { status: 404 });
+  const user = await User.findById(id).catch(() => null);
+  if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
 
-    const current = data.users[index];
-    const next = { ...current, updatedAt: new Date().toISOString() };
-
-    if (patch.name !== undefined) next.name = patch.name.trim();
-    if (patch.role !== undefined) {
-      if (!ROLES.includes(patch.role)) throw new Error(`Invalid role: ${patch.role}`);
-      next.role = patch.role;
-      // Switching away from admin drops any password; switching a
-      // guest/operator into admin requires setting one explicitly.
-      if (!PASSWORD_ROLES.includes(next.role)) next.passwordHash = null;
+  if (patch.email !== undefined) {
+    const normalized = normalizeEmail(patch.email);
+    const clash = await User.findOne({ email: normalized, _id: { $ne: user._id } });
+    if (clash) throw Object.assign(new Error('A user with this email already exists'), { status: 409 });
+    user.email = normalized;
+  }
+  if (patch.name !== undefined) user.name = patch.name.trim();
+  if (patch.role !== undefined) {
+    if (!ROLES.includes(patch.role)) throw new Error(`Invalid role: ${patch.role}`);
+    user.role = patch.role;
+    // Switching away from admin drops any password; switching a
+    // guest/operator into admin requires setting one explicitly.
+    if (!PASSWORD_ROLES.includes(user.role)) user.passwordHash = null;
+  }
+  if (patch.active !== undefined) user.active = Boolean(patch.active);
+  if (patch.password) {
+    if (!PASSWORD_ROLES.includes(user.role)) {
+      throw Object.assign(new Error('Only admin accounts can have a password'), { status: 400 });
     }
-    if (patch.active !== undefined) next.active = Boolean(patch.active);
-    if (patch.password) {
-      if (!PASSWORD_ROLES.includes(next.role)) {
-        throw Object.assign(new Error('Only admin accounts can have a password'), { status: 400 });
-      }
-      next.passwordHash = await bcrypt.hash(patch.password, 12);
-    }
+    user.passwordHash = await bcrypt.hash(patch.password, 12);
+  }
 
-    data.users[index] = next;
-    return { data, result: toPublic(next) };
-  });
+  try {
+    await user.save();
+  } catch (err) {
+    if (err.code === 11000) {
+      throw Object.assign(new Error('A user with this email already exists'), { status: 409 });
+    }
+    throw err;
+  }
+
+  return user.toJSON();
 }
 
 export async function deleteUser(id) {
-  return store.mutate((data) => {
-    const before = data.users.length;
-    data.users = data.users.filter((u) => u.id !== id);
-    if (data.users.length === before) {
-      throw Object.assign(new Error('User not found'), { status: 404 });
-    }
-    return data;
-  });
+  let result;
+  try {
+    result = await User.findByIdAndDelete(id);
+  } catch {
+    result = null;
+  }
+  if (!result) throw Object.assign(new Error('User not found'), { status: 404 });
 }
 
 export async function touchLastLogin(id) {
-  return store.mutate((data) => {
-    const user = data.users.find((u) => u.id === id);
-    if (user) user.lastLoginAt = new Date().toISOString();
-    return data;
-  });
+  await User.updateOne({ _id: id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
 }
 
 /** Idempotent - only creates the seed admin if no admin account exists yet. */
 export async function seedAdmin() {
   if (!config.seed.enabled) return;
-
-  const { users } = await store.read();
-  if (users.some((u) => u.role === 'admin')) return;
+  if (await User.findOne({ role: 'admin' })) return;
 
   await createUser({
     email: config.seed.adminEmail,

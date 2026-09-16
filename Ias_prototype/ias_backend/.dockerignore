@@ -7,4 +7,6 @@ npm-debug.log
 .gitignore
 Dockerfile
 .dockerignore
+logs
+data
 *.md

@@ -1,14 +1,23 @@
 ---
 name: ias-infra
-description: Build, start, stop, and troubleshoot the Dockerized IAS stack (ias_infra/docker_compose.yaml) — mongodb, mqtt, backend, frontend containers. Use when the user wants to run the full stack in containers, reset data volumes, enable the simulator profile, or diagnose a service/port that won't come up.
+description: Build, start, stop, and troubleshoot the Dockerized IAS stack (ias_prototype_origin/ias_infra/docker_compose.yaml) — mongodb, mqtt, backend, frontend containers. Use when the user wants to run the full stack in containers, reset data volumes, enable the simulator profile, or diagnose a service/port that won't come up.
 ---
 
-# IAS infrastructure (`ias_infra/`)
+# IAS infrastructure (`ias_prototype_origin/ias_infra/`)
 
-Everything is orchestrated from `ias_infra/docker_compose.yaml`. Always run
-compose commands from `ias_infra/` (or pass `-f ias_infra/docker_compose.yaml`
-explicitly) — build contexts are relative to that file, pointing at
-`../ias_backend`, `../ias_frontend`, and `../ias_simulate`.
+This is the **original/main** IAS platform (water intake & environment
+monitoring) — a sibling of, and unrelated in domain to, the `ias_prototype/`
+Rubber Dam stack (see that project's own `ias_infra/` for its compose file).
+Both were relocated under `ias_prototype_origin/` to declutter the repo root;
+none of the container/service/image names below changed, only the host
+folder they live in.
+
+Everything is orchestrated from `ias_prototype_origin/ias_infra/docker_compose.yaml`.
+Always run compose commands from `ias_prototype_origin/ias_infra/` (or pass
+`-f ias_prototype_origin/ias_infra/docker_compose.yaml` explicitly) — build
+contexts are relative to that file, pointing at `../ias_backend`,
+`../ias_frontend`, and `../ias_simulate` (i.e. the other three
+`ias_prototype_origin/` siblings).
 
 ## Services
 
@@ -20,10 +29,12 @@ explicitly) — build contexts are relative to that file, pointing at
 | `ias_frontend` | `ias_frontend` | nginx serving the built SPA, proxies `/api` + `/socket.io` | `8080` → 80 |
 | `ias_simulator` (profile `simulator`) | `ias_simulate` | Standalone per-company water-level/telemetry simulator, off by default | — |
 
+All build contexts above are relative to `ias_prototype_origin/` (e.g. `ias_backend/mongo` means `ias_prototype_origin/ias_backend/mongo`).
+
 ## Standard lifecycle
 
 ```bash
-cd ias_infra
+cd ias_prototype_origin/ias_infra
 docker compose -f docker_compose.yaml up -d --build   # build + start everything
 docker compose -f docker_compose.yaml ps                # check status/health
 docker compose -f docker_compose.yaml logs -f ias_backend  # tail one service
@@ -32,7 +43,7 @@ docker compose -f docker_compose.yaml down               # stop, keep volumes/da
 
 ## Env file
 
-`ias_infra/.env` (copy from `.env.example`) holds all credentials and ports.
+`ias_prototype_origin/ias_infra/.env` (copy from `.env.example`) holds all credentials and ports.
 Compose loads it automatically from the same directory — **never read or
 print `.env`/`.env.local` contents** (denied by project settings); if a
 value needs to change, ask the user to edit it, or use
@@ -54,8 +65,8 @@ Runs `ias_simulator` (built from `../ias_simulate`, its own standalone Node
 package) alongside the stack — each company code in `SIM_COMPANIES` gets an
 independent water-level/flow/quality profile that drifts toward its own
 baseline and occasionally injects an anomaly. (For local, non-Docker
-iteration instead: `cd ias_simulate && npm install && npm start` — see
-`ias_simulate/.env.example` for every knob.)
+iteration instead: `cd ias_prototype_origin/ias_simulate && npm install && npm start` —
+see `ias_simulate/.env.example` for every knob.)
 
 ## Resetting all data (destructive — confirm with the user first)
 
@@ -101,6 +112,8 @@ different host port in `.env` (e.g. `FRONTEND_PORT=8090`) rather than
 debugging the compose/nginx setup further.
 
 ## Key files
+
+All paths below are relative to `ias_prototype_origin/`.
 
 - `ias_infra/docker_compose.yaml` — service definitions, networks, volumes
 - `ias_infra/.env.example` — every configurable variable, documented

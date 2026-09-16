@@ -1,9 +1,9 @@
 ---
 name: ias-backend
-description: Work on the IAS backend (ias_backend/) — REST API, MQTT/TCP ingest, anomaly detection, auth, reports. Use for running it locally, understanding its structure, or adding/changing server-side behavior including new telemetry metrics.
+description: Work on the IAS backend (ias_prototype_origin/ias_backend/) — REST API, MQTT/TCP ingest, anomaly detection, auth, reports. Use for running it locally, understanding its structure, or adding/changing server-side behavior including new telemetry metrics. This is the original/main IAS platform, unrelated to the ias_prototype/ Rubber Dam stack.
 ---
 
-# IAS backend (`ias_backend/`)
+# IAS backend (`ias_prototype_origin/ias_backend/`)
 
 Node/Express REST API + Socket.IO gateway + MQTT client + raw TCP
 DualCam/FMC125 ingest service, backed by MongoDB.
@@ -35,7 +35,7 @@ Mongo + MQTT are the only things that need Docker; the backend itself runs
 natively for fast iteration:
 
 ```bash
-cd ias_infra && docker compose -f docker_compose.yaml up -d ias_mongodb ias_mqtt
+cd ias_prototype_origin/ias_infra && docker compose -f docker_compose.yaml up -d ias_mongodb ias_mqtt
 cd ../ias_backend
 npm install        # first time only
 npm run dev        # node --watch, hot-reloads on save
@@ -52,7 +52,8 @@ Re-seed on demand without restarting: `npm run seed`.
 
 ## Generating live telemetry without hardware
 
-The simulator now lives in its own package, `ias_simulate/`:
+The simulator now lives in its own package, `ias_simulate/` (a sibling of
+`ias_backend/` under `ias_prototype_origin/`):
 
 ```bash
 cd ../ias_simulate

@@ -15,10 +15,9 @@ COPY package.json ./
 COPY src ./src
 
 RUN addgroup -S ias && adduser -S ias -G ias \
-  && mkdir -p /app/data && chown -R ias:ias /app
+  && mkdir -p /app/logs && chown -R ias:ias /app
 USER ias
 
-VOLUME ["/app/data"]
 EXPOSE 4100
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { getState } from '../state.js';
 import { mqttStatus } from '../services/mqtt.service.js';
 import { authenticate } from '../middleware/auth.js';
@@ -9,7 +10,12 @@ import usersRoutes from './users.routes.js';
 const router = Router();
 
 router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', mqtt: mqttStatus(), time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    mongo: { connected: mongoose.connection.readyState === 1 },
+    mqtt: mqttStatus(),
+    time: new Date().toISOString()
+  });
 });
 
 router.use('/auth', authRoutes);

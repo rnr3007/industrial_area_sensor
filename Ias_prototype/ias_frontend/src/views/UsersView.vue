@@ -63,7 +63,7 @@ async function save() {
   formError.value = '';
   try {
     if (editing.value) {
-      const payload = { name: form.name, role: form.role, active: form.active };
+      const payload = { email: form.email, name: form.name, role: form.role, active: form.active };
       if (form.password) payload.password = form.password;
       await api.put(`/users/${editing.value.id}`, payload);
       toasts.success('User updated', form.email);
@@ -160,9 +160,10 @@ onMounted(load);
     <div v-if="formError" class="alert-box error">{{ formError }}</div>
 
     <form id="user-form" @submit.prevent="save">
-      <label v-if="!editing" class="field">
+      <label class="field">
         <span>Email *</span>
         <input v-model="form.email" type="email" required />
+        <span v-if="editing" class="hint">Changing this changes where their sign-in link is sent.</span>
       </label>
 
       <label class="field">

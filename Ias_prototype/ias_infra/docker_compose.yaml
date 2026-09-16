@@ -2,15 +2,17 @@
 # IAS Prototype - Rubber Dam monitoring & control
 #
 #   docker compose -f docker_compose.yaml up -d --build
-#   open http://localhost:4536
+#   open http://localhost:4546
 #
-# A self-contained sibling stack to the main IAS platform (ias_infra/), on
-# its own ports/network/project name so both can run at the same time.
-# Reuses two things from the main platform instead of duplicating them:
-#   - the MQTT broker image (../../ias_backend/mqtt) - generic, no
-#     IAS-specific topic logic baked in.
-#   - the ../../ias_simulate package as the device simulator, running its
-#     rubber-dam-simulator.js script instead of the FMC125 one.
+# A self-contained sibling stack to the main IAS platform
+# (ias_prototype_origin/ias_infra/), on its own ports/network/project name/
+# database so both can run at the same time with zero shared state. Reuses
+# two things from the main platform instead of duplicating them:
+#   - the MQTT broker image (../../ias_prototype_origin/ias_backend/mqtt) -
+#     generic, no IAS-specific topic logic baked in.
+#   - the ../../ias_prototype_origin/ias_simulate package as the device
+#     simulator, running its rubber-dam-simulator.js script instead of the
+#     FMC125 one.
 #
 # Build contexts point relative to this file, so run compose from this
 # directory.
@@ -20,11 +22,43 @@ name: iasproto
 
 services:
   # ---------------------------------------------------------------------------
+  # MongoDB - user accounts only (auth/roles). A dedicated instance/volume,
+  # separate from the main IAS platform's Mongo.
+  # ---------------------------------------------------------------------------
+  iasproto_mongodb:
+    build:
+      context: ../ias_backend/mongo
+      dockerfile: Dockerfile
+    image: iasproto/mongodb:1.0.0
+    container_name: iasproto_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-rubberdam_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-rubberdam_root_password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-rubberdam}
+      MONGO_APP_DB: ${MONGO_DB:-rubberdam}
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-rubberdam_app}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-rubberdam_app_password}
+    volumes:
+      - iasproto_mongo_data:/data/db
+      - iasproto_mongo_config:/data/configdb
+    ports:
+      # Bound to loopback: not meant to be reachable off-host.
+      - "127.0.0.1:${MONGO_PORT:-27018}:27017"
+    networks: [iasproto_net]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
   # MQTT broker - rubber dam telemetry/log/status/cmd transport.
   # ---------------------------------------------------------------------------
   iasproto_mqtt:
     build:
-      context: ../../ias_backend/mqtt
+      context: ../../ias_prototype_origin/ias_backend/mqtt
       dockerfile: Dockerfile
     image: iasproto/mqtt-broker:1.0.0
     container_name: iasproto_mqtt
@@ -51,8 +85,9 @@ services:
       start_period: 15s
 
   # ---------------------------------------------------------------------------
-  # Backend - REST control API + Socket.IO gateway + MQTT bridge. Stateless
-  # (in-memory only): the device is the source of truth, this just relays.
+  # Backend - REST control API + Socket.IO gateway + MQTT bridge. User
+  # accounts live in Mongo; telemetry/log state stays in-memory (the device
+  # is the source of truth for that, this just relays it).
   # ---------------------------------------------------------------------------
   iasproto_backend:
     build:
@@ -62,12 +97,14 @@ services:
     container_name: iasproto_backend
     restart: unless-stopped
     depends_on:
+      iasproto_mongodb:
+        condition: service_healthy
       iasproto_mqtt:
         condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 4100
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4536,http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4546,http://localhost:5173}
 
       MQTT_URL: mqtt://iasproto_mqtt:1883
       MQTT_USERNAME: ${MQTT_SERVICE_USER:-rubberdam_service}
@@ -75,12 +112,14 @@ services:
       MQTT_BASE_TOPIC: ${RUBBERDAM_BASE_TOPIC:-rubberdam}
 
       LOG_HISTORY_SIZE: ${LOG_HISTORY_SIZE:-200}
+      LOG_DIR: /app/logs
 
-      DATA_DIR: /app/data
+      MONGO_URI: mongodb://${MONGO_APP_USERNAME:-rubberdam_app}:${MONGO_APP_PASSWORD:-rubberdam_app_password}@iasproto_mongodb:27017/${MONGO_DB:-rubberdam}?authSource=${MONGO_DB:-rubberdam}
+
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
       JWT_SESSION_TTL: ${JWT_SESSION_TTL:-30m}
       JWT_MAGIC_LINK_TTL: ${JWT_MAGIC_LINK_TTL:-10m}
-      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:4536}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:4546}
 
       SMTP_SERVICE: ${SMTP_SERVICE:-}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -95,7 +134,9 @@ services:
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin#12345}
       SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Administrator}
     volumes:
-      - iasproto_backend_data:/app/data
+      # Bind mount (not a named volume) so info.txt/error.txt land directly in
+      # ias_backend/logs/ on the host and are readable without docker exec/cp.
+      - ../ias_backend/logs:/app/logs
     ports:
       - "${BACKEND_PORT:-4100}:4100"
     networks: [iasproto_net]
@@ -124,7 +165,7 @@ services:
       iasproto_backend:
         condition: service_started
     ports:
-      - "${FRONTEND_PORT:-4536}:80"
+      - "${FRONTEND_PORT:-4546}:80"
     networks: [iasproto_net]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1/healthz"]
@@ -140,7 +181,7 @@ services:
   # ---------------------------------------------------------------------------
   iasproto_simulator:
     build:
-      context: ../../ias_simulate
+      context: ../../ias_prototype_origin/ias_simulate
       dockerfile: Dockerfile
     image: iasproto/simulator:1.0.0
     container_name: iasproto_simulator
@@ -164,6 +205,7 @@ networks:
     driver: bridge
 
 volumes:
+  iasproto_mongo_data:
+  iasproto_mongo_config:
   iasproto_mqtt_data:
   iasproto_mqtt_log:
-  iasproto_backend_data:

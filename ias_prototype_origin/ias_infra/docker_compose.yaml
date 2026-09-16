@@ -113,6 +113,12 @@ services:
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin#12345}
 
       SNAPSHOT_TTL_SECONDS: ${SNAPSHOT_TTL_SECONDS:-21600}
+
+      LOG_DIR: /app/logs
+    volumes:
+      # Bind mount (not a named volume) so info.txt/error.txt land directly in
+      # ias_backend/logs/ on the host and are readable without docker exec/cp.
+      - ../ias_backend/logs:/app/logs
     ports:
       - "${BACKEND_PORT:-4000}:4000"   # REST + WebSocket
       - "${TCP_PORT:-5027}:5027"       # FMC125 / DualCam TCP service

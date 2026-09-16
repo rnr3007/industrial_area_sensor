@@ -46,6 +46,7 @@ router.post(
 );
 
 const updateSchema = z.object({
+  email: z.string().email().optional(),
   name: z.string().trim().min(1).max(120).optional(),
   role: z.enum(ROLES).optional(),
   active: z.boolean().optional(),

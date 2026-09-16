@@ -17,7 +17,7 @@ const config = {
   port: int(process.env.PORT, 4100),
 
   cors: {
-    origins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:4536')
+    origins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:4546')
       .split(',')
       .map((o) => o.trim())
       .filter(Boolean)
@@ -35,10 +35,9 @@ const config = {
   // How many recent activity-log lines to keep in memory for late-joining clients.
   logHistorySize: int(process.env.LOG_HISTORY_SIZE, 200),
 
-  // Where the JSON-file user store lives. A prototype-scale substitute for a
-  // real database - fine for a handful of operator accounts, persisted via a
-  // Docker volume so it survives container recreation.
-  dataDir: process.env.DATA_DIR || './data',
+  // A dedicated MongoDB instance - separate database/volume/credentials from
+  // the main IAS platform's Mongo, so the two stacks never share data.
+  mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27018/rubberdam',
 
   jwt: {
     secret: process.env.JWT_SECRET || 'iasproto-dev-secret-change-me',
@@ -49,7 +48,7 @@ const config = {
   },
 
   // Used to build the clickable link embedded in the magic-link email.
-  appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:4536',
+  appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:4546',
 
   smtp: {
     // Set to "gmail" to use nodemailer's built-in Gmail preset (recommended -

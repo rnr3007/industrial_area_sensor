@@ -1,10 +1,18 @@
+import { writeLog } from './file-logger.js';
+
 const stamp = () => new Date().toISOString();
 
 const write = (level, args) => {
   const line = args
     .map((a) => (typeof a === 'string' ? a : JSON.stringify(a)))
     .join(' ');
-  process.stdout.write(`${stamp()} [${level}] ${line}\n`);
+  const formatted = `${stamp()} [${level}] ${line}`;
+  process.stdout.write(`${formatted}\n`);
+
+  // error.txt holds only real errors; info.txt gets both info and warnings,
+  // so an operator scanning it sees the full request/warning story in order.
+  if (level === 'error') writeLog('error', formatted);
+  else if (level === 'info' || level === 'warn') writeLog('info', formatted);
 };
 
 const logger = {
