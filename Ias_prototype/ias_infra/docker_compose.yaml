@@ -1,0 +1,169 @@
+# =============================================================================
+# IAS Prototype - Rubber Dam monitoring & control
+#
+#   docker compose -f docker_compose.yaml up -d --build
+#   open http://localhost:4536
+#
+# A self-contained sibling stack to the main IAS platform (ias_infra/), on
+# its own ports/network/project name so both can run at the same time.
+# Reuses two things from the main platform instead of duplicating them:
+#   - the MQTT broker image (../../ias_backend/mqtt) - generic, no
+#     IAS-specific topic logic baked in.
+#   - the ../../ias_simulate package as the device simulator, running its
+#     rubber-dam-simulator.js script instead of the FMC125 one.
+#
+# Build contexts point relative to this file, so run compose from this
+# directory.
+# =============================================================================
+
+name: iasproto
+
+services:
+  # ---------------------------------------------------------------------------
+  # MQTT broker - rubber dam telemetry/log/status/cmd transport.
+  # ---------------------------------------------------------------------------
+  iasproto_mqtt:
+    build:
+      context: ../../ias_backend/mqtt
+      dockerfile: Dockerfile
+    image: iasproto/mqtt-broker:1.0.0
+    container_name: iasproto_mqtt
+    restart: unless-stopped
+    environment:
+      MQTT_SERVICE_USER: ${MQTT_SERVICE_USER:-rubberdam_service}
+      MQTT_SERVICE_PASSWORD: ${MQTT_SERVICE_PASSWORD:-rubberdam_service_password}
+      MQTT_DEVICE_USER: ${MQTT_DEVICE_USER:-rubberdam_device}
+      MQTT_DEVICE_PASSWORD: ${MQTT_DEVICE_PASSWORD:-rubberdam_device_password}
+    volumes:
+      - iasproto_mqtt_data:/mosquitto/data
+      - iasproto_mqtt_log:/mosquitto/log
+    ports:
+      - "${MQTT_PORT:-1884}:1883"
+      - "${MQTT_WS_PORT:-9002}:9001"
+    networks: [iasproto_net]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mosquitto_sub -h 127.0.0.1 -p 1883 -u "$$MQTT_SERVICE_USER" -P "$$MQTT_SERVICE_PASSWORD" -t '$$SYS/broker/uptime' -C 1 -W 3 >/dev/null || exit 1
+      interval: 20s
+      timeout: 6s
+      retries: 6
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Backend - REST control API + Socket.IO gateway + MQTT bridge. Stateless
+  # (in-memory only): the device is the source of truth, this just relays.
+  # ---------------------------------------------------------------------------
+  iasproto_backend:
+    build:
+      context: ../ias_backend
+      dockerfile: Dockerfile
+    image: iasproto/backend:1.0.0
+    container_name: iasproto_backend
+    restart: unless-stopped
+    depends_on:
+      iasproto_mqtt:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4536,http://localhost:5173}
+
+      MQTT_URL: mqtt://iasproto_mqtt:1883
+      MQTT_USERNAME: ${MQTT_SERVICE_USER:-rubberdam_service}
+      MQTT_PASSWORD: ${MQTT_SERVICE_PASSWORD:-rubberdam_service_password}
+      MQTT_BASE_TOPIC: ${RUBBERDAM_BASE_TOPIC:-rubberdam}
+
+      LOG_HISTORY_SIZE: ${LOG_HISTORY_SIZE:-200}
+
+      DATA_DIR: /app/data
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
+      JWT_SESSION_TTL: ${JWT_SESSION_TTL:-30m}
+      JWT_MAGIC_LINK_TTL: ${JWT_MAGIC_LINK_TTL:-10m}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:4536}
+
+      SMTP_SERVICE: ${SMTP_SERVICE:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-IAS Rubber Dam <no-reply@ias.local>}
+
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@rubberdam.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin#12345}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Administrator}
+    volumes:
+      - iasproto_backend_data:/app/data
+    ports:
+      - "${BACKEND_PORT:-4100}:4100"
+    networks: [iasproto_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4100/api/health"]
+      interval: 20s
+      timeout: 6s
+      retries: 6
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Frontend - the prototype control panel (nginx serving a static page),
+  # proxying /api and /socket.io to the backend.
+  # ---------------------------------------------------------------------------
+  iasproto_frontend:
+    build:
+      context: ../ias_frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-}
+    image: iasproto/frontend:1.0.0
+    container_name: iasproto_frontend
+    restart: unless-stopped
+    depends_on:
+      iasproto_backend:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-4536}:80"
+    networks: [iasproto_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Rubber dam device simulator - optional. Owns the pressure/water-level
+  # physics and reacts to control commands, standing in for the real PLC.
+  #   enable with:  docker compose --profile simulator up -d
+  # ---------------------------------------------------------------------------
+  iasproto_simulator:
+    build:
+      context: ../../ias_simulate
+      dockerfile: Dockerfile
+    image: iasproto/simulator:1.0.0
+    container_name: iasproto_simulator
+    restart: unless-stopped
+    profiles: [simulator]
+    command: ["node", "src/rubber-dam-simulator.js"]
+    depends_on:
+      iasproto_backend:
+        condition: service_healthy
+    environment:
+      MQTT_URL: mqtt://iasproto_mqtt:1883
+      MQTT_USERNAME: ${MQTT_DEVICE_USER:-rubberdam_device}
+      MQTT_PASSWORD: ${MQTT_DEVICE_PASSWORD:-rubberdam_device_password}
+      RUBBERDAM_BASE_TOPIC: ${RUBBERDAM_BASE_TOPIC:-rubberdam}
+      RUBBERDAM_TICK_MS: ${RUBBERDAM_TICK_MS:-1000}
+    networks: [iasproto_net]
+
+networks:
+  iasproto_net:
+    name: iasproto_net
+    driver: bridge
+
+volumes:
+  iasproto_mqtt_data:
+  iasproto_mqtt_log:
+  iasproto_backend_data:

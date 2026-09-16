@@ -1,0 +1,191 @@
+# =============================================================================
+# Industrial Area Sensor - full stack
+#
+#   docker compose -f docker_compose.yaml up -d --build
+#   open http://localhost:8080   (admin@ias.local / Admin#12345)
+#
+# Build contexts point one level up, so run compose from this directory.
+# =============================================================================
+
+name: ias
+
+services:
+  # ---------------------------------------------------------------------------
+  # MongoDB - telemetry, companies, users, alerts, audit trail
+  # ---------------------------------------------------------------------------
+  ias_mongodb:
+    build:
+      context: ../ias_backend/mongo
+      dockerfile: Dockerfile
+    image: ias/mongodb:1.0.0
+    container_name: ias_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-ias_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-ias_root_password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-ias}
+      # Consumed by 01-init-ias.js to create the least-privilege app user.
+      MONGO_APP_DB: ${MONGO_DB:-ias}
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-ias_app}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-ias_app_password}
+    volumes:
+      - ias_mongo_data:/data/db
+      - ias_mongo_config:/data/configdb
+    ports:
+      # Bound to loopback: the database is not meant to be reachable off-host.
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+    networks: [ias_net]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # MQTT broker - device telemetry transport (stands in for AWS IoT Core)
+  # ---------------------------------------------------------------------------
+  ias_mqtt:
+    build:
+      context: ../ias_backend/mqtt
+      dockerfile: Dockerfile
+    image: ias/mqtt-broker:1.0.0
+    container_name: ias_mqtt
+    restart: unless-stopped
+    environment:
+      MQTT_SERVICE_USER: ${MQTT_SERVICE_USER:-ias_service}
+      MQTT_SERVICE_PASSWORD: ${MQTT_SERVICE_PASSWORD:-ias_service_password}
+      MQTT_DEVICE_USER: ${MQTT_DEVICE_USER:-ias_device}
+      MQTT_DEVICE_PASSWORD: ${MQTT_DEVICE_PASSWORD:-ias_device_password}
+    volumes:
+      - ias_mqtt_data:/mosquitto/data
+      - ias_mqtt_log:/mosquitto/log
+    ports:
+      - "${MQTT_PORT:-1883}:1883"      # native MQTT for field devices
+      - "${MQTT_WS_PORT:-9001}:9001"   # MQTT over WebSockets for browsers
+    networks: [ias_net]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mosquitto_sub -h 127.0.0.1 -p 1883 -u "$$MQTT_SERVICE_USER" -P "$$MQTT_SERVICE_PASSWORD" -t '$$SYS/broker/uptime' -C 1 -W 3 >/dev/null || exit 1
+      interval: 20s
+      timeout: 6s
+      retries: 6
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Web service - REST API, Socket.IO gateway, MQTT client, TCP DualCam server
+  # ---------------------------------------------------------------------------
+  ias_backend:
+    build:
+      context: ../ias_backend
+      dockerfile: Dockerfile
+    image: ias/backend:1.0.0
+    container_name: ias_backend
+    restart: unless-stopped
+    depends_on:
+      ias_mongodb:
+        condition: service_healthy
+      ias_mqtt:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      MONGO_URI: mongodb://${MONGO_APP_USERNAME:-ias_app}:${MONGO_APP_PASSWORD:-ias_app_password}@ias_mongodb:27017/${MONGO_DB:-ias}?authSource=${MONGO_DB:-ias}
+
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-12h}
+
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+
+      MQTT_URL: mqtt://ias_mqtt:1883
+      MQTT_USERNAME: ${MQTT_SERVICE_USER:-ias_service}
+      MQTT_PASSWORD: ${MQTT_SERVICE_PASSWORD:-ias_service_password}
+      MQTT_BASE_TOPIC: ${MQTT_BASE_TOPIC:-ias}
+
+      TCP_ENABLED: "true"
+      TCP_PORT: 5027
+
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@ias.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin#12345}
+
+      SNAPSHOT_TTL_SECONDS: ${SNAPSHOT_TTL_SECONDS:-21600}
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"   # REST + WebSocket
+      - "${TCP_PORT:-5027}:5027"       # FMC125 / DualCam TCP service
+    networks: [ias_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4000/api/health"]
+      interval: 20s
+      timeout: 6s
+      retries: 6
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Operator console - Vue 3 SPA served by nginx, proxying /api and /socket.io
+  # ---------------------------------------------------------------------------
+  ias_frontend:
+    build:
+      context: ../ias_frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-}
+        VITE_MAP_STYLE_URL: ${VITE_MAP_STYLE_URL:-}
+    image: ias/frontend:1.0.0
+    container_name: ias_frontend
+    restart: unless-stopped
+    depends_on:
+      ias_backend:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    networks: [ias_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Device simulator - optional. Publishes FMC125 telemetry and DualCam frames
+  # so the stack has live data without hardware.
+  #   enable with:  docker compose --profile simulator up -d
+  # ---------------------------------------------------------------------------
+  ias_simulator:
+    build:
+      context: ../ias_simulate
+      dockerfile: Dockerfile
+    image: ias/simulator:1.0.0
+    container_name: ias_simulator
+    restart: unless-stopped
+    profiles: [simulator]
+    depends_on:
+      ias_backend:
+        condition: service_healthy
+    environment:
+      MQTT_URL: mqtt://ias_mqtt:1883
+      MQTT_USERNAME: ${MQTT_DEVICE_USER:-ias_device}
+      MQTT_PASSWORD: ${MQTT_DEVICE_PASSWORD:-ias_device_password}
+      MQTT_BASE_TOPIC: ${MQTT_BASE_TOPIC:-ias}
+      SIM_COMPANIES: ${SIM_COMPANIES:-PTAJ,PTBKN,PTSLP,PTHPS}
+      SIM_INTERVAL_MS: ${SIM_INTERVAL_MS:-5000}
+      SIM_SNAPSHOT_EVERY: ${SIM_SNAPSHOT_EVERY:-6}
+      SIM_BACKFILL_HOURS: ${SIM_BACKFILL_HOURS:-48}
+      SIM_ANOMALY_CHANCE: ${SIM_ANOMALY_CHANCE:-0.04}
+    networks: [ias_net]
+
+networks:
+  ias_net:
+    name: ias_net
+    driver: bridge
+
+volumes:
+  ias_mongo_data:
+  ias_mongo_config:
+  ias_mqtt_data:
+  ias_mqtt_log:

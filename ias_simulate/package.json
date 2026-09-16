@@ -1,0 +1,20 @@
+{
+  "name": "ias-simulate",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Industrial Area Sensor - standalone device simulators over MQTT: per-company FMC125/DualCam telemetry (src/simulator.js) and the Rubber Dam prototype device (src/rubber-dam-simulator.js)",
+  "main": "src/simulator.js",
+  "scripts": {
+    "start": "node src/simulator.js",
+    "dev": "node --watch src/simulator.js",
+    "rubber-dam": "node src/rubber-dam-simulator.js",
+    "rubber-dam:dev": "node --watch src/rubber-dam-simulator.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "mqtt": "^5.10.1"
+  }
+}

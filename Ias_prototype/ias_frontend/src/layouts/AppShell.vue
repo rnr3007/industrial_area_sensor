@@ -1,0 +1,89 @@
+<script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+import { useDamStore } from '@/stores/dam';
+import { useConfirmStore } from '@/stores/confirm';
+
+const auth = useAuthStore();
+const dam = useDamStore();
+const confirm = useConfirmStore();
+const router = useRouter();
+
+const now = ref(new Date());
+let clockTimer = null;
+
+const timeLabel = computed(() =>
+  now.value.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+);
+
+async function logout() {
+  const ok = await confirm.ask({
+    title: 'Sign out',
+    message: 'You will need to sign in again to access the console. Sign out now?',
+    confirmLabel: 'Sign out',
+    danger: true
+  });
+  if (!ok) return;
+
+  await auth.logout();
+  router.push({ name: 'login' });
+}
+
+onMounted(() => {
+  // The socket connection itself is established by the auth store on
+  // login/restore; this just wires the dam store's listeners onto it.
+  dam.wireSocket();
+  clockTimer = setInterval(() => {
+    now.value = new Date();
+  }, 1000);
+});
+
+onBeforeUnmount(() => {
+  dam.teardownSocket();
+  clearInterval(clockTimer);
+});
+</script>
+
+<template>
+  <header class="header">
+    <div class="logo-area">
+      <div class="logo-icon"></div>
+      <div class="logo-text">
+        <h1>RUBBER DAM</h1>
+        <div class="subtitle">Monitoring &amp; Kontrol Otomatis</div>
+      </div>
+    </div>
+
+    <nav class="nav-links">
+      <RouterLink :to="{ name: 'dashboard' }" class="nav-link" active-class="active-link">Dashboard</RouterLink>
+      <RouterLink v-if="auth.isAdmin" :to="{ name: 'users' }" class="nav-link" active-class="active-link">
+        Users
+      </RouterLink>
+    </nav>
+
+    <div class="status-bar">
+      <span class="badge" :class="dam.socketConnected ? 'badge-active' : 'badge-standby'">
+        {{ dam.socketConnected ? 'TERHUBUNG' : 'TERPUTUS' }}
+      </span>
+      <span class="time-display">{{ timeLabel }}</span>
+      <div class="user-chip">
+        <div class="who">
+          <div class="name">{{ auth.user?.name }}</div>
+          <div class="role">{{ auth.role }}</div>
+        </div>
+        <button class="btn-download" title="Sign out" @click="logout">⏻</button>
+      </div>
+    </div>
+  </header>
+
+  <RouterView />
+</template>

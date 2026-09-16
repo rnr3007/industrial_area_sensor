@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0e14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Sistem Monitoring & Kontrol Rubber Dam</title>
+    <style>
+        /* =========================================================
+           ROOT VARIABLES & RESET
+           ========================================================= */
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #111820;
+            --bg-panel: #161e28;
+            --bg-card: #1a2332;
+            --border: #253040;
+            --text-primary: #e0e6ed;
+            --text-secondary: #8899aa;
+            --accent-blue: #00b4d8;
+            --accent-cyan: #00e5ff;
+            --accent-green: #00e676;
+            --accent-yellow: #ffd740;
+            --accent-red: #ff3d4f;
+            --accent-orange: #ff9100;
+            --accent-amber: #ffab00;
+            --compressor-on: #00e676;
+            --compressor-off: #546e7a;
+            --danger: #ff1744;
+            --warning: #ff9100;
+            --success: #00c853;
+            --glow-blue: 0 0 20px rgba(0, 180, 216, 0.3);
+            --glow-green: 0 0 20px rgba(0, 230, 118, 0.3);
+            --glow-red: 0 0 20px rgba(255, 61, 79, 0.3);
+            --glow-amber: 0 0 20px rgba(255, 171, 0, 0.3);
+            --font-mono: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+            --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+            /* Layout vars */
+            --header-height: 64px;
+            --control-panel-width: 360px;
+            --transition-speed: 0.3s;
+
+            /* iOS Safe Area */
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(0, 180, 216, 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 60%, rgba(0, 230, 118, 0.03) 0%, transparent 60%);
+            -webkit-tap-highlight-color: transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overscroll-behavior-y: none;
+        }
+
+        img, video, canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* =========================================================
+           HEADER
+           ========================================================= */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: calc(8px + var(--safe-top)) max(16px, var(--safe-right)) 8px max(16px, var(--safe-left));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            height: calc(var(--header-height) + var(--safe-top));
+            min-height: calc(56px + var(--safe-top));
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, #00b4d8, #0077b6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: var(--glow-blue);
+            flex-shrink: 0;
+        }
+        .logo-icon::after { content: '🌊'; font-size: 18px; }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .header h1 {
+            font-size: clamp(0.95rem, 2.2vw, 1.3rem);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header .subtitle {
+            font-size: clamp(0.5rem, 1.2vw, 0.65rem);
+            color: var(--text-secondary);
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .time-display {
+            font-family: var(--font-mono);
+            font-size: clamp(0.6rem, 1.2vw, 0.75rem);
+            color: var(--accent-cyan);
+            background: #0d1520;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            letter-spacing: 0.8px;
+            white-space: nowrap;
+        }
+
+        /* =========================================================
+           MAIN GRID
+           ========================================================= */
+        .main-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) var(--control-panel-width);
+            gap: 16px;
+            padding: 14px max(18px, var(--safe-right)) calc(14px + var(--safe-bottom)) max(18px, var(--safe-left));
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+            transition: all var(--transition-speed);
+        }
+
+        /* =========================================================
+           PANEL
+           ========================================================= */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s;
+            min-width: 0;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .panel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+        }
+        .badge-active {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.35);
+        }
+        .badge-standby {
+            background: rgba(255, 145, 0, 0.12);
+            color: var(--accent-orange);
+            border: 1px solid rgba(255, 145, 0, 0.3);
+        }
+
+        /* =========================================================
+           CARDS ROW (Info Sensor)
+           ========================================================= */
+        .cards-row {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 6px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            min-width: 0;
+        }
+        .info-card .card-label {
+            font-size: clamp(0.5rem, 0.75vw, 0.6rem);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .info-card .card-value {
+            font-family: var(--font-mono);
+            font-size: clamp(0.9rem, 1.6vw, 1.3rem);
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            line-height: 1.2;
+        }
+        .info-card .card-unit {
+            font-size: 0.55rem;
+            color: var(--text-secondary);
+            margin-left: 1px;
+        }
+        .value-pressure { color: var(--accent-cyan); }
+        .value-water { color: #4fc3f7; }
+        .value-status { color: var(--accent-green); }
+        .value-compressor { color: var(--compressor-on); transition: color 0.5s; }
+        .value-compressor.off { color: var(--compressor-off); }
+        .value-strength { color: var(--accent-green); transition: color 0.5s; }
+        .value-height { color: #bb86fc; }
+
+        /* =========================================================
+           DAM VISUAL (Canvas + Kamera)
+           ========================================================= */
+        .dam-visual {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 14px;
+            width: 100%;
+            overflow: hidden;
+            flex-wrap: nowrap;
+        }
+
+        .dam-canvas-wrap {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .dam-canvas-wrap canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Kamera Inline */
+        .camera-inline {
+            flex: 0 0 240px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #0d1520;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            max-width: 240px;
+        }
+        .camera-inline .panel-header { margin-bottom: 6px; }
+        .camera-inline .panel-title { font-size: 0.7rem; }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .camera-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background: #000;
+        }
+        .camera-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.65rem;
+            text-align: center;
+            padding: 10px;
+            gap: 6px;
+            background: #050a10;
+        }
+        .camera-placeholder .cam-icon { font-size: 1.6rem; opacity: 0.5; }
+
+        .camera-controls {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .camera-controls .btn {
+            font-size: 0.65rem;
+            padding: 8px 8px;
+            min-height: 36px;
+        }
+
+        /* =========================================================
+           CONTROL PANEL WRAPPER
+           ========================================================= */
+        .control-panel-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: all var(--transition-speed);
+            position: relative;
+            min-width: 0;
+        }
+
+        /* =========================================================
+           BUTTONS
+           ========================================================= */
+        .btn {
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.6px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            white-space: nowrap;
+            min-height: 42px;
+            touch-action: manipulation;
+        }
+        .btn-compressor-on {
+            background: #00c853;
+            color: #000;
+            border-color: #00e676;
+            box-shadow: var(--glow-green);
+        }
+        .btn-compressor-off {
+            background: #37474f;
+            color: #b0bec5;
+            border-color: #546e7a;
+        }
+        .btn-deflate {
+            background: #5d3a00;
+            color: #ffb74d;
+            border-color: #ff9100;
+            box-shadow: var(--glow-amber);
+        }
+        .btn-mode {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .btn-mode.active-mode {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            box-shadow: var(--glow-blue);
+            background: rgba(0, 180, 216, 0.06);
+        }
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            box-shadow: none !important;
+        }
+        .btn-deflate.active-deflate {
+            background: #ff6d00;
+            color: #000;
+            border-color: #ff9100;
+            box-shadow: 0 0 18px rgba(255, 145, 0, 0.5);
+            animation: pulse-deflate 0.8s infinite;
+        }
+        @keyframes pulse-deflate {
+            0%, 100% { box-shadow: 0 0 12px rgba(255, 145, 0, 0.4); }
+            50% { box-shadow: 0 0 28px rgba(255, 145, 0, 0.8); }
+        }
+
+        /* Tombol download kecil */
+        .btn-download {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.65rem;
+            padding: 6px 10px;
+            width: auto;
+            border-radius: 6px;
+            text-transform: uppercase;
+            min-height: 32px;
+        }
+        .btn-download:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .btn-download.pdf:hover { border-color: #ff3d4f; color: #ff3d4f; }
+        .btn-download.excel:hover { border-color: #00c853; color: #00c853; }
+
+        .log-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        /* =========================================================
+           THRESHOLD SLIDERS
+           ========================================================= */
+        .threshold-group {
+            margin-bottom: 10px;
+        }
+        .threshold-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .threshold-value {
+            font-family: var(--font-mono);
+            color: var(--accent-cyan);
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+        .threshold-group input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: #0d1520;
+            border: 1px solid var(--border);
+            outline: none;
+            cursor: pointer;
+        }
+        .threshold-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            border: 2px solid #fff;
+        }
+        .threshold-group input[type="range"]::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            border: 2px solid #fff;
+        }
+
+        /* =========================================================
+           TOAST
+           ========================================================= */
+        .toast-container {
+            position: fixed;
+            top: calc(16px + var(--safe-top));
+            right: max(16px, var(--safe-right));
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+            max-width: calc(90vw - var(--safe-left) - var(--safe-right));
+        }
+        .toast {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            animation: slideIn 0.4s ease, fadeOut 0.4s 3s forwards;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            max-width: 360px;
+            word-break: break-word;
+        }
+        .toast-warning { background: #ff9100; color: #000; }
+        .toast-danger { background: #ff1744; color: #fff; }
+        .toast-info { background: #00b4d8; color: #000; }
+        .toast-success { background: #00c853; color: #000; }
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        /* =========================================================
+           LOG AREA
+           ========================================================= */
+        .log-area {
+            max-height: 220px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            background: #0d1520;
+            border-radius: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            color: #9eabb8;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+        .log-area .log-entry {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            padding: 2px 0;
+        }
+        .log-area .log-time { color: #607d8b; margin-right: 6px; }
+        .log-area .log-warn { color: var(--accent-orange); }
+        .log-area .log-danger { color: var(--accent-red); }
+        .log-area .log-info { color: var(--accent-cyan); }
+        .log-area .log-success { color: var(--accent-green); }
+
+        /* =========================================================
+           MEDIA QUERIES — RESPONSIVE UNTUK SEMUA PERANGKAT
+           ========================================================= */
+
+        /* ── 1400px+ : Desktop Besar ───────────────────────── */
+        @media (min-width: 1400px) {
+            :root { --control-panel-width: 380px; }
+            .main-grid { gap: 20px; padding: 18px 24px; }
+            .camera-inline { flex: 0 0 260px; max-width: 260px; }
+        }
+
+        /* ── 1200–1399px : Desktop Standar ─────────────────── */
+        @media (max-width: 1399px) and (min-width: 1200px) {
+            :root { --control-panel-width: 340px; }
+            .camera-inline { flex: 0 0 230px; max-width: 230px; }
+        }
+
+        /* ── 992–1199px : Laptop ───────────────────────────── */
+        @media (max-width: 1199px) {
+            :root { --control-panel-width: 300px; }
+            .main-grid { gap: 14px; padding: 12px 16px; }
+            .camera-inline { flex: 0 0 200px; max-width: 200px; }
+            .cards-row { gap: 5px; }
+            .info-card { padding: 7px 5px; }
+        }
+
+        /* ── 768–991px : Tablet Landscape ──────────────────── */
+        @media (max-width: 991px) {
+            :root {
+                --control-panel-width: 260px;
+                --header-height: 58px;
+            }
+            .main-grid { gap: 10px; padding: 10px 12px; }
+            .panel { padding: 12px 14px; border-radius: 10px; }
+            .cards-row {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 5px;
+            }
+            .info-card { padding: 7px 5px; border-radius: 8px; }
+            .info-card .card-value { font-size: 1rem; }
+            .info-card .card-label { font-size: 0.55rem; }
+
+            /* Kamera pindah ke bawah canvas saat tablet */
+            .dam-visual {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 12px;
+            }
+            .dam-canvas-wrap { width: 100%; }
+            .camera-inline {
+                flex: 1 1 auto;
+                max-width: 100%;
+                width: 100%;
+            }
+            .camera-container {
+                max-height: 260px;
+            }
+            .camera-controls .btn { min-height: 40px; }
+
+            .btn { font-size: 0.72rem; padding: 9px 12px; }
+            .panel-title { font-size: 0.72rem; }
+            .log-area { max-height: 180px; }
+        }
+
+        /* ── 480–767px : Tablet Portrait / HP Besar ────────── */
+        @media (max-width: 767px) {
+            :root {
+                --control-panel-width: 100%;
+                --header-height: 52px;
+            }
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 8px max(10px, var(--safe-right)) calc(12px + var(--safe-bottom)) max(10px, var(--safe-left));
+            }
+            .control-panel-wrapper { gap: 10px; }
+
+            .header {
+                padding: calc(6px + var(--safe-top)) max(12px, var(--safe-right)) 6px max(12px, var(--safe-left));
+                gap: 8px;
+            }
+            .logo-icon { width: 30px; height: 30px; border-radius: 7px; font-size: 16px; }
+            .logo-icon::after { font-size: 14px; }
+            .header h1 { font-size: 0.85rem; }
+            .header .subtitle { font-size: 0.5rem; }
+            .time-display { font-size: 0.6rem; padding: 4px 8px; }
+
+            .cards-row {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 5px;
+                margin-bottom: 8px;
+            }
+            .info-card { padding: 8px 5px; border-radius: 8px; }
+            .info-card .card-value { font-size: 0.95rem; }
+            .info-card .card-label { font-size: 0.5rem; }
+            .info-card .card-unit { font-size: 0.5rem; }
+
+            .dam-visual {
+                padding: 10px;
+                border-radius: 10px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .camera-inline {
+                flex: 1 1 auto;
+                width: 100%;
+                max-width: 100%;
+                padding: 10px;
+            }
+            .camera-container { max-height: 240px; }
+            .camera-controls { flex-wrap: wrap; }
+            .camera-controls .btn {
+                flex: 1 1 calc(50% - 3px);
+                min-width: 100px;
+                min-height: 42px;
+                font-size: 0.7rem;
+            }
+
+            .btn {
+                font-size: 0.75rem;
+                padding: 11px 12px;
+                min-height: 44px;
+            }
+            .panel { padding: 12px; border-radius: 10px; }
+            .panel-title { font-size: 0.72rem; }
+            .badge { font-size: 0.6rem; }
+
+            .log-area { max-height: 160px; font-size: 0.62rem; }
+            .btn-download { font-size: 0.6rem; padding: 6px 9px; min-height: 32px; }
+
+            .toast { font-size: 0.7rem; padding: 10px 14px; max-width: 90vw; }
+        }
+
+        /* ── 380–479px : Android / iPhone Standar ──────────── */
+        @media (max-width: 479px) {
+            :root { --header-height: 48px; }
+
+            .header { padding: calc(5px + var(--safe-top)) max(10px, var(--safe-right)) 5px max(10px, var(--safe-left)); gap: 6px; }
+            .logo-icon { width: 28px; height: 28px; border-radius: 6px; }
+            .logo-icon::after { font-size: 13px; }
+            .header h1 { font-size: 0.78rem; letter-spacing: 0.3px; }
+            .header .subtitle { font-size: 0.45rem; letter-spacing: 0.8px; }
+            .time-display { font-size: 0.55rem; padding: 3px 6px; }
+
+            .cards-row { grid-template-columns: repeat(2, 1fr); gap: 5px; }
+            .info-card { padding: 8px 4px; border-radius: 7px; }
+            .info-card .card-value { font-size: 0.88rem; }
+            .info-card .card-label { font-size: 0.48rem; }
+            .info-card .card-unit { font-size: 0.48rem; }
+
+            .panel { padding: 10px; border-radius: 9px; }
+            .panel-title { font-size: 0.68rem; }
+            .badge { font-size: 0.55rem; padding: 3px 7px; }
+
+            .btn { font-size: 0.7rem; padding: 11px 10px; min-height: 44px; }
+            .camera-controls .btn { font-size: 0.65rem; min-height: 42px; }
+
+            .log-area { max-height: 140px; font-size: 0.6rem; padding: 7px 10px; }
+            .btn-download { font-size: 0.55rem; padding: 5px 8px; min-height: 30px; }
+
+            .dam-visual { padding: 10px; }
+            .camera-inline { padding: 8px; gap: 6px; }
+            .camera-container { max-height: 200px; }
+
+            .threshold-group label { font-size: 0.65rem; }
+            .threshold-value { font-size: 0.7rem; }
+
+            .toast { font-size: 0.68rem; padding: 9px 12px; }
+        }
+
+        /* ── < 380px : iPhone SE / HP Kecil ────────────────── */
+        @media (max-width: 379px) {
+            :root { --header-height: 44px; }
+
+            .header { padding: calc(4px + var(--safe-top)) max(8px, var(--safe-right)) 4px max(8px, var(--safe-left)); gap: 4px; }
+            .logo-icon { width: 24px; height: 24px; border-radius: 5px; }
+            .logo-icon::after { font-size: 11px; }
+            .header h1 { font-size: 0.7rem; }
+            .header .subtitle { font-size: 0.4rem; letter-spacing: 0.5px; }
+            .time-display { font-size: 0.5rem; padding: 3px 5px; }
+
+            .main-grid { gap: 8px; padding: 6px; }
+            .panel { padding: 8px; border-radius: 8px; }
+
+            .cards-row { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+            .info-card { padding: 6px 3px; border-radius: 6px; }
+            .info-card .card-value { font-size: 0.78rem; }
+            .info-card .card-label { font-size: 0.42rem; }
+            .info-card .card-unit { font-size: 0.42rem; }
+
+            .dam-visual { padding: 8px; gap: 8px; }
+            .camera-inline { padding: 7px; gap: 5px; }
+            .camera-container { max-height: 180px; }
+
+            .btn { font-size: 0.65rem; padding: 10px 8px; min-height: 42px; letter-spacing: 0.3px; }
+            .camera-controls .btn { font-size: 0.6rem; min-height: 40px; }
+            .panel-title { font-size: 0.62rem; letter-spacing: 0.6px; }
+
+            .log-area { max-height: 120px; font-size: 0.55rem; padding: 6px 8px; }
+            .btn-download { font-size: 0.52rem; padding: 5px 7px; min-height: 28px; }
+
+            .toast { font-size: 0.65rem; padding: 8px 10px; }
+        }
+
+        /* ── Landscape HP (tinggi < 500px) ─────────────────── */
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root { --header-height: 44px; }
+            .header { padding-top: calc(4px + var(--safe-top)); padding-bottom: 4px; }
+            .logo-icon { width: 26px; height: 26px; }
+            .header h1 { font-size: 0.75rem; }
+            .header .subtitle { display: none; }
+
+            .main-grid {
+                grid-template-columns: minmax(0, 1fr) 240px;
+                gap: 8px;
+                padding: 6px;
+            }
+            .control-panel-wrapper { gap: 8px; }
+            .dam-visual { flex-direction: row; }
+            .camera-inline { flex: 0 0 180px; max-width: 180px; }
+            .camera-container { max-height: 120px; }
+            .cards-row { grid-template-columns: repeat(6, 1fr); gap: 3px; }
+            .info-card { padding: 4px 3px; }
+            .info-card .card-value { font-size: 0.72rem; }
+            .info-card .card-label { font-size: 0.4rem; }
+            .info-card .card-unit { display: none; }
+            .panel { padding: 6px 8px; }
+            .panel-title { font-size: 0.6rem; }
+            .btn { font-size: 0.62rem; padding: 7px 8px; min-height: 34px; }
+            .log-area { max-height: 70px; font-size: 0.55rem; }
+            .toast-container { top: calc(6px + var(--safe-top)); }
+        }
+
+        /* ── Perangkat Sentuh (Touch) ───────────────────────── */
+        @media (hover: none) and (pointer: coarse) {
+            .btn { min-height: 44px; }
+            .btn-download { min-height: 32px; }
+            .camera-controls .btn { min-height: 42px; }
+            .threshold-group input[type="range"] { height: 8px; }
+            .threshold-group input[type="range"]::-webkit-slider-thumb { width: 26px; height: 26px; }
+        }
+
+        /* ── Aksesibilitas: Reduce Motion ──────────────────── */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ── Print Mode ─────────────────────────────────────── */
+        @media print {
+            .header, .control-panel-wrapper, .camera-inline, .log-actions { display: none !important; }
+            .main-grid { grid-template-columns: 1fr; padding: 0; }
+            .panel, .dam-visual { box-shadow: none; border-color: #ccc; }
+            body { background: #fff; color: #000; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-icon"></div>
+            <div class="logo-text">
+                <h1>RUBBER DAM</h1>
+                <div class="subtitle">Monitoring & Kontrol Otomatis</div>
+            </div>
+        </div>
+        <div class="status-bar">
+            <span class="time-display" id="timeDisplay">--</span>
+        </div>
+    </header>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="main-grid">
+        <div>
+            <div class="cards-row" id="cardsRow">
+                <div class="info-card" id="sensorTekananUdara">
+                    <div class="card-label">Tekanan Rubber</div>
+                    <div class="card-value value-pressure" id="pressureValue">3.20</div><span class="card-unit">Bar</span>
+                </div>
+                <div class="info-card" id="sensorKetinggianAir">
+                    <div class="card-label">Ketinggian Air Hulu</div>
+                    <div class="card-value value-water" id="waterLevelValue">2.85</div><span class="card-unit">Meter</span>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Status Kompresor</div>
+                    <div class="card-value value-compressor" id="compressorStatusValue">OFF</div><span class="card-unit"
+                        id="compressorStatusBadge"></span>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Mode Operasi</div>
+                    <div class="card-value value-status" id="modeDisplay">Otomatis</div><span class="card-unit">Aktif</span>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Kekuatan Rubber</div>
+                    <div class="card-value value-strength" id="rubberStrengthValue">100</div><span class="card-unit">%</span>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Ketinggian Rubber</div>
+                    <div class="card-value value-height" id="rubberHeightValue">3</div><span class="card-unit">Meter</span>
+                </div>
+            </div>
+
+            <div class="dam-visual panel" style="margin-bottom:12px;">
+                <div class="dam-canvas-wrap">
+                    <canvas id="damCanvas" width="650" height="600"></canvas>
+                </div>
+
+                <div class="camera-inline">
+                    <div class="panel-header">
+                        <span class="panel-title">📷 Kamera Monitoring</span>
+                        <span id="cameraStatus" class="badge badge-standby">OFF</span>
+                    </div>
+                    <div class="camera-container">
+                        <video id="cameraVideo" autoplay playsinline muted></video>
+                        <div class="camera-placeholder" id="cameraPlaceholder">
+                            <div class="cam-icon">📷</div>
+                            <div>Kamera belum aktif</div>
+                        </div>
+                    </div>
+                    <div class="camera-controls">
+                        <button class="btn btn-compressor-on" id="btnCamStart" onclick="startCamera()">AKTIFKAN</button>
+                        <button class="btn btn-compressor-off" id="btnCamStop" onclick="stopCamera()" disabled>MATIKAN</button>
+                    </div>
+                    <button class="btn btn-mode" onclick="switchCamera()"
+                        style="font-size:0.65rem;padding:8px 8px;">🔄 GANTI KAMERA</button>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top:12px;">
+                <div class="panel-header">
+                    <span class="panel-title">📋 Log Aktivitas</span>
+                    <div class="log-actions">
+                        <button class="btn btn-download pdf" onclick="downloadPDF()" title="Download laporan PDF">📄 PDF</button>
+                        <button class="btn btn-download excel" onclick="downloadExcel()" title="Download data Excel">📊 EXCEL</button>
+                        <button class="btn btn-download" onclick="clearLog()">🗑 BERSIHKAN</button>
+                    </div>
+                </div>
+                <div class="log-area" id="logArea">
+                    <div class="log-entry"><span class="log-time">--:--:--</span> <span class="log-info">Sistem
+                            dimulai...</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel-wrapper" id="controlPanelWrapper">
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">🎛️ Mode Kontrol</span></div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-mode active-mode" id="btnModeAuto" onclick="setMode('auto')">OTOMATIS</button>
+                    <button class="btn btn-mode" id="btnModeManual" onclick="setMode('manual')">MANUAL</button>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">⚡ Threshold Otomatis</span></div>
+                <div class="threshold-group" style="margin-bottom:10px;">
+                    <label>Tekanan Minimum (ON) <span class="threshold-value" id="threshMinLabel">2.5 Bar</span></label>
+                    <input type="range" id="threshMin" min="1.0" max="4.0" step="0.1" value="2.5"
+                        oninput="updateThresholdLabels()">
+                </div>
+                <div class="threshold-group">
+                    <label>Tekanan Maksimum (OFF) <span class="threshold-value" id="threshMaxLabel">4.5 Bar</span></label>
+                    <input type="range" id="threshMax" min="3.0" max="6.0" step="0.1" value="4.5"
+                        oninput="updateThresholdLabels()">
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">🔧 Kontrol Kompresor</span><span
+                        id="manualDisabledBadge" class="badge badge-standby" style="display:none;">Mode Otomatis</span></div>
+                <button class="btn btn-compressor-on" id="btnCompOn" onclick="manualCompressorOn()">HIDUPKAN
+                    KOMPRESOR</button>
+                <button class="btn btn-compressor-off" id="btnCompOff" onclick="manualCompressorOff()"
+                    style="margin-top:7px;">MATIKAN KOMPRESOR</button>
+                <button class="btn btn-deflate" id="btnDeflate" onclick="toggleDeflate()" style="margin-top:7px;">SUSUTKAN
+                    RUBBER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ CDN: html2pdf (PDF) & SheetJS (Excel) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        // ==================== STATE ====================
+        const state = {
+            mode: 'auto',
+            compressorOn: false,
+            deflatingMode: false,
+            maintainPressure: false,
+            pressure: 3.2,
+            waterLevel: 2.85,
+            thresholdMin: 2.5,
+            thresholdMax: 4.5,
+            logs: [],
+            rubberStrength: 98.5,
+            rubberHeight: 2.35,
+        };
+
+        const $pressureValue = document.getElementById('pressureValue');
+        const $waterLevelValue = document.getElementById('waterLevelValue');
+        const $compressorStatusValue = document.getElementById('compressorStatusValue');
+        const $compressorStatusBadge = document.getElementById('compressorStatusBadge');
+        const $modeDisplay = document.getElementById('modeDisplay');
+        const $btnModeAuto = document.getElementById('btnModeAuto');
+        const $btnModeManual = document.getElementById('btnModeManual');
+        const $btnCompOn = document.getElementById('btnCompOn');
+        const $btnCompOff = document.getElementById('btnCompOff');
+        const $btnDeflate = document.getElementById('btnDeflate');
+        const $manualDisabledBadge = document.getElementById('manualDisabledBadge');
+        const $threshMin = document.getElementById('threshMin');
+        const $threshMax = document.getElementById('threshMax');
+        const $threshMinLabel = document.getElementById('threshMinLabel');
+        const $threshMaxLabel = document.getElementById('threshMaxLabel');
+        const $logArea = document.getElementById('logArea');
+        const $toastContainer = document.getElementById('toastContainer');
+        const $timeDisplay = document.getElementById('timeDisplay');
+        const $damCanvas = document.getElementById('damCanvas');
+        const ctxDam = $damCanvas.getContext('2d');
+        const $rubberStrengthValue = document.getElementById('rubberStrengthValue');
+        const $rubberHeightValue = document.getElementById('rubberHeightValue');
+
+        const $sensorTekananUdara = document.getElementById('sensorTekananUdara');
+        const $sensorKetinggianAir = document.getElementById('sensorKetinggianAir');
+
+        const $cameraVideo = document.getElementById('cameraVideo');
+        const $cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const $cameraStatus = document.getElementById('cameraStatus');
+        const $btnCamStart = document.getElementById('btnCamStart');
+        const $btnCamStop = document.getElementById('btnCamStop');
+
+        function updateThresholdLabels() {
+            state.thresholdMin = parseFloat($threshMin.value);
+            state.thresholdMax = parseFloat($threshMax.value);
+            $threshMinLabel.textContent = state.thresholdMin.toFixed(1) + ' Bar';
+            $threshMaxLabel.textContent = state.thresholdMax.toFixed(1) + ' Bar';
+            if (state.thresholdMin >= state.thresholdMax) {
+                state.thresholdMax = state.thresholdMin + 0.3;
+                $threshMax.value = state.thresholdMax;
+                $threshMaxLabel.textContent = state.thresholdMax.toFixed(1) + ' Bar';
+            }
+            addLog('info', 'Threshold: ON < ' + state.thresholdMin.toFixed(1) + ' | OFF > ' + state.thresholdMax.toFixed(1));
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            $btnModeAuto.classList.toggle('active-mode', mode === 'auto');
+            $btnModeManual.classList.toggle('active-mode', mode === 'manual');
+            $modeDisplay.textContent = mode === 'auto' ? 'OTOMATIS' : 'MANUAL';
+            state.maintainPressure = false;
+            if (mode === 'auto') {
+                state.deflatingMode = false;
+                updateDeflateButton();
+            }
+            $btnDeflate.disabled = (mode === 'auto');
+            $manualDisabledBadge.style.display = (mode === 'auto') ? 'inline-block' : 'none';
+            updateManualButtonStates();
+            if (mode === 'auto') evaluateAutoLogic();
+            updateUI();
+            addLog('info', 'Mode operasi: ' + (mode === 'auto' ? 'OTOMATIS' : 'MANUAL'));
+        }
+
+        function updateManualButtonStates() {
+            const isManual = state.mode === 'manual';
+            const blocked = !isManual || state.deflatingMode;
+
+            if (blocked) {
+                $btnCompOn.disabled = true;
+                $btnCompOff.disabled = true;
+            } else {
+                $btnCompOn.disabled = state.compressorOn === true;
+                $btnCompOff.disabled = state.compressorOn === false;
+            }
+            $btnDeflate.disabled = !isManual;
+        }
+
+        function updateDeflateButton() {
+            if (state.deflatingMode) {
+                $btnDeflate.textContent = 'HENTIKAN SUSUT';
+                $btnDeflate.classList.add('active-deflate');
+            } else {
+                $btnDeflate.textContent = 'SUSUTKAN RUBBER';
+                $btnDeflate.classList.remove('active-deflate');
+            }
+        }
+
+        function toggleDeflate() {
+            if (state.mode !== 'manual') return;
+            state.deflatingMode = !state.deflatingMode;
+            if (state.deflatingMode) {
+                state.compressorOn = false;
+                state.maintainPressure = false;
+                addLog('warn', 'Mode susut rubber diaktifkan');
+            } else {
+                state.maintainPressure = true;
+                addLog('info', 'Mode susut rubber dihentikan');
+            }
+            updateDeflateButton();
+            updateManualButtonStates();
+            updateUI();
+        }
+
+        function manualCompressorOn() {
+            if (state.mode !== 'manual' || state.deflatingMode) return;
+            if (state.compressorOn) return;
+            state.compressorOn = true;
+            state.maintainPressure = false;
+            addLog('success', 'Kompresor dihidupkan (manual)');
+            updateManualButtonStates();
+            updateUI();
+        }
+
+        function manualCompressorOff() {
+            if (state.mode !== 'manual' || state.deflatingMode) return;
+            if (!state.compressorOn) return;
+            state.compressorOn = false;
+            state.maintainPressure = true;
+            addLog('info', 'Kompresor dimatikan (manual)');
+            updateManualButtonStates();
+            updateUI();
+        }
+
+        function evaluateAutoLogic() {
+            if (state.mode !== 'auto') return;
+            if (state.pressure < state.thresholdMin && !state.compressorOn) {
+                state.compressorOn = true;
+                addLog('warn', 'Auto: Tekanan rendah (' + state.pressure.toFixed(2) + ' Bar) → Kompresor ON');
+            } else if (state.pressure > state.thresholdMax && state.compressorOn) {
+                state.compressorOn = false;
+                addLog('info', 'Auto: Tekanan tinggi (' + state.pressure.toFixed(2) + ' Bar) → Kompresor OFF');
+            }
+        }
+
+        function updatePressure(dt) {
+            state.waterLevel += (Math.random() - 0.38) * 0.04;
+            state.waterLevel = Math.max(1.0, Math.min(3, state.waterLevel));
+
+            if (!state.maintainPressure) {
+                let dp = 0;
+                if (state.deflatingMode) dp -= 0.35 * dt;
+                else if (state.compressorOn) dp += 0.12 * dt;
+                else dp -= 0.04 * dt;
+                state.pressure = Math.max(0.5, Math.min(6.5, state.pressure + dp));
+            }
+
+            const minH = 1.0, maxH = 3.8;
+            state.rubberHeight = minH + ((state.pressure - 0.5) / 6.0) * (maxH - minH);
+            state.rubberHeight = Math.max(minH, Math.min(maxH, state.rubberHeight));
+            state.rubberStrength = Math.max(0, state.rubberStrength - 0.003 * dt);
+        }
+
+        function addLog(type, msg) {
+            const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
+            state.logs.push({ time, type, message: msg });
+            if (state.logs.length > 200) state.logs.shift();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const html = state.logs.slice(-50).map(l => {
+                let cls = 'log-info';
+                if (l.type === 'warn') cls = 'log-warn';
+                if (l.type === 'danger') cls = 'log-danger';
+                if (l.type === 'success') cls = 'log-success';
+                return `<div class="log-entry"><span class="log-time">${l.time}</span> <span class="${cls}">${l.message}</span></div>`;
+            }).join('') ||
+                '<div class="log-entry"><span class="log-time">--:--:--</span> <span class="log-info">Log bersih.</span></div>';
+            if ($logArea) {
+                $logArea.innerHTML = html;
+                $logArea.scrollTop = $logArea.scrollHeight;
+            }
+        }
+
+        function clearLog() {
+            state.logs = [];
+            renderLogs();
+            addLog('info', 'Log dibersihkan');
+        }
+
+        function showToast(type, msg) {
+            const t = document.createElement('div');
+            t.className = 'toast toast-' + type;
+            t.textContent = msg;
+            $toastContainer.appendChild(t);
+            setTimeout(() => t.remove(), 3500);
+        }
+
+        function updateUI() {
+            $pressureValue.textContent = state.pressure.toFixed(2);
+            $waterLevelValue.textContent = state.waterLevel.toFixed(2);
+            $rubberStrengthValue.textContent = state.rubberStrength.toFixed(1);
+            $rubberHeightValue.textContent = state.rubberHeight.toFixed(2);
+
+            if ($sensorTekananUdara) {
+                $sensorTekananUdara.dataset.sensorValue = state.pressure.toFixed(2);
+                $sensorTekananUdara.dataset.sensorUnit = 'Bar';
+            }
+            if ($sensorKetinggianAir) {
+                $sensorKetinggianAir.dataset.sensorValue = state.waterLevel.toFixed(2);
+                $sensorKetinggianAir.dataset.sensorUnit = 'Meter';
+            }
+
+            const compEl = $compressorStatusValue;
+            if (state.deflatingMode) {
+                compEl.textContent = 'SUSUT';
+                compEl.className = 'card-value value-compressor off';
+                $compressorStatusBadge.textContent = 'SUSUT';
+            } else if (state.compressorOn) {
+                compEl.textContent = 'ON';
+                compEl.className = 'card-value value-compressor';
+                $compressorStatusBadge.textContent = 'BEROPERASI';
+            } else {
+                compEl.textContent = 'OFF';
+                compEl.className = 'card-value value-compressor off';
+                $compressorStatusBadge.textContent = state.maintainPressure ? 'DITAHAN' : 'SIAGA';
+            }
+        }
+
+        // ==================== KAMERA ====================
+        let cameraStream = null;
+        let currentFacingMode = 'environment';
+
+        async function startCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                addLog('danger', 'Browser tidak mendukung akses kamera');
+                showToast('danger', 'Browser tidak mendukung kamera');
+                return;
+            }
+            try {
+                stopCamera(true);
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: currentFacingMode },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                $cameraVideo.srcObject = cameraStream;
+                await $cameraVideo.play().catch(() => {});
+                $cameraPlaceholder.style.display = 'none';
+                $cameraStatus.textContent = 'LIVE';
+                $cameraStatus.className = 'badge badge-active';
+                $btnCamStart.disabled = true;
+                $btnCamStop.disabled = false;
+                addLog('success', 'Kamera diaktifkan (' +
+                    (currentFacingMode === 'user' ? 'depan' : 'belakang') + ')');
+                showToast('success', 'Kamera aktif');
+            } catch (err) {
+                addLog('danger', 'Gagal mengaktifkan kamera: ' + err.message);
+                showToast('danger', 'Kamera gagal: ' + err.message);
+                $cameraPlaceholder.style.display = 'flex';
+                $cameraStatus.textContent = 'ERROR';
+                $cameraStatus.className = 'badge badge-standby';
+                $btnCamStart.disabled = false;
+                $btnCamStop.disabled = true;
+            }
+        }
+
+        function stopCamera(silent) {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+            if ($cameraVideo) $cameraVideo.srcObject = null;
+            if ($cameraPlaceholder) $cameraPlaceholder.style.display = 'flex';
+            if ($cameraStatus) {
+                $cameraStatus.textContent = 'OFF';
+                $cameraStatus.className = 'badge badge-standby';
+            }
+            if ($btnCamStart) $btnCamStart.disabled = false;
+            if ($btnCamStop) $btnCamStop.disabled = true;
+            if (!silent) {
+                addLog('info', 'Kamera dimatikan');
+            }
+        }
+
+        async function switchCamera() {
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            addLog('info', 'Ganti kamera ke ' + (currentFacingMode === 'user' ? 'depan' : 'belakang'));
+            if (cameraStream) {
+                await startCamera();
+            }
+        }
+
+        // ==================== GAMBAR DAM ====================
+        function drawDam() {
+            const canvas = $damCanvas;
+            const ctx = ctxDam;
+            const container = canvas.parentElement;
+            const containerWidth = container.clientWidth;
+            const aspectRatio = 650 / 300;
+
+            let w = Math.min(containerWidth - 8, 650);
+            if (w < 200) w = 200;
+            let h = Math.round(w / aspectRatio);
+
+            if (window.innerWidth <= 768) {
+                const rect = container.getBoundingClientRect();
+                const availableHeight = window.innerHeight - rect.top - 24;
+                if (availableHeight > 0) {
+                    h = availableHeight;
+                    w = Math.round(h * aspectRatio);
+                    if (w > containerWidth) {
+                        w = containerWidth;
+                        h = Math.round(w / aspectRatio);
+                    }
+                }
+            }
+
+            canvas.width = w;
+            canvas.height = h;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.clearRect(0, 0, w, h);
+
+            const sc = Math.min(w / 650, h / 300);
+
+            const rubberLeft = 210 * sc;
+            const rubberRight = 440 * sc;
+            const baseY = h - 55;
+            const platLength = rubberRight - rubberLeft;
+            const pivotX = rubberLeft;
+            const pivotY = baseY;
+
+            const inflationNorm = Math.max(0, Math.min(1, (state.pressure - 0.5) / 4.0));
+            const maxAngle = 50 * Math.PI / 180;
+            const angle = inflationNorm * maxAngle;
+
+            const tipX = pivotX + platLength * Math.cos(angle);
+            const tipY = pivotY - platLength * Math.sin(angle);
+
+            const waterY = h - 40 - (state.waterLevel / 3) * 160;
+            ctx.fillStyle = '#81d4fa';
+            ctx.fillRect(30 * sc, waterY, 220 * sc, h - waterY);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.fillRect(30 * sc, waterY, 220 * sc, h - waterY);
+
+            ctx.strokeStyle = '#b3e5fc';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(30 * sc, waterY);
+            ctx.lineTo(250 * sc, waterY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#e1f5fe';
+            ctx.font = `bold ${Math.max(8, 11 * sc)}px "Inter", sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.fillText('↕ ' + state.waterLevel.toFixed(1) + ' m', 35 * sc, waterY - 8);
+
+            const pondasiLeft = 190 * sc;
+            const pondasiRight = 460 * sc;
+            ctx.fillStyle = '#4a5568';
+            ctx.fillRect(pondasiLeft, baseY, pondasiRight - pondasiLeft, 45);
+            ctx.fillStyle = '#3d4555';
+            ctx.fillRect(pondasiLeft - 5 * sc, baseY + 5, pondasiRight - pondasiLeft + 10 * sc, 8);
+
+            ctx.save();
+            ctx.fillStyle = '#1c1c2e';
+            ctx.strokeStyle = '#3d3d5c';
+            ctx.lineWidth = 2 * sc;
+            ctx.beginPath();
+            ctx.moveTo(pivotX, pivotY);
+            const cpX = pivotX + platLength * 0.55;
+            const cpY = tipY - 18 * sc - inflationNorm * 20 * sc;
+            ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
+            ctx.lineTo(rubberRight, baseY);
+            ctx.lineTo(pivotX, pivotY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            const platThickness = 12 * sc;
+            const segments = 30;
+
+            function bezier(t, p0, p1, p2) {
+                const mt = 1 - t;
+                return {
+                    x: mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x,
+                    y: mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y
+                };
+            }
+            function bezierDerivative(t, p0, p1, p2) {
+                const mt = 1 - t;
+                return {
+                    x: 2 * mt * (p1.x - p0.x) + 2 * t * (p2.x - p1.x),
+                    y: 2 * mt * (p1.y - p0.y) + 2 * t * (p2.y - p1.y)
+                };
+            }
+
+            const P0 = { x: pivotX, y: pivotY };
+            const P1 = { x: cpX, y: cpY };
+            const P2 = { x: tipX, y: tipY };
+
+            const bottomPoints = [];
+            const topPoints = [];
+
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const pt = bezier(t, P0, P1, P2);
+                bottomPoints.push(pt);
+
+                if (i === 0) {
+                    topPoints.push({ x: pt.x, y: pt.y - platThickness });
+                } else {
+                    const deriv = bezierDerivative(t, P0, P1, P2);
+                    const len = Math.sqrt(deriv.x * deriv.x + deriv.y * deriv.y);
+                    if (len < 0.001) {
+                        topPoints.push({ x: pt.x, y: pt.y - platThickness });
+                    } else {
+                        let nx = deriv.y / len;
+                        let ny = -deriv.x / len;
+                        if (ny > 0) { nx = -nx; ny = -ny; }
+                        topPoints.push({
+                            x: pt.x + nx * platThickness,
+                            y: pt.y + ny * platThickness
+                        });
+                    }
+                }
+            }
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+            for (let i = 1; i < bottomPoints.length; i++) {
+                ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+            }
+            ctx.lineTo(topPoints[topPoints.length - 1].x, topPoints[topPoints.length - 1].y);
+            for (let i = topPoints.length - 2; i >= 0; i--) {
+                ctx.lineTo(topPoints[i].x, topPoints[i].y);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            ctx.translate(2, 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fill();
+            ctx.translate(-2, -2);
+
+            const platGrad = ctx.createLinearGradient(P0.x, P0.y, P2.x, P0.y);
+            platGrad.addColorStop(0, '#d0d6dc');
+            platGrad.addColorStop(0.3, '#a8b4bf');
+            platGrad.addColorStop(0.7, '#6b7a8a');
+            platGrad.addColorStop(1, '#4a5568');
+            ctx.fillStyle = platGrad;
+            ctx.fill();
+            ctx.strokeStyle = '#3b444f';
+            ctx.lineWidth = 1.8 * sc;
+            ctx.stroke();
+
+            const boltRadius = 2.5 * sc;
+            ctx.fillStyle = '#2d3748';
+            for (let i = 0; i <= segments; i++) {
+                const bx = (bottomPoints[i].x + topPoints[i].x) / 2;
+                const by = (bottomPoints[i].y + topPoints[i].y) / 2;
+                ctx.beginPath();
+                ctx.arc(bx, by, boltRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(bx - 0.8 * sc, by - 0.8 * sc, boltRadius * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#2d3748';
+            }
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+            ctx.lineWidth = 0.5;
+            for (let i = 5; i < segments; i += 5) {
+                ctx.beginPath();
+                ctx.moveTo(bottomPoints[i].x, bottomPoints[i].y);
+                ctx.lineTo(topPoints[i].x, topPoints[i].y);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+
+            const labelX = pivotX + platLength * 0.5;
+            const labelY = baseY - 45 * sc;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${Math.max(10, 14 * sc)}px "Inter", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText(state.pressure.toFixed(1) + ' Bar', labelX, labelY);
+
+            const compX = 520 * sc, compY = 60;
+            ctx.fillStyle = state.deflatingMode ? '#ff9100' : state.compressorOn ? '#00e676' : '#546e7a';
+            ctx.beginPath();
+            ctx.arc(compX, compY, 8 * sc, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = `${Math.max(7, 9 * sc)}px "Inter", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('KOMPRESOR', compX, compY + 20 * sc);
+
+            if (inflationNorm > 0.2) {
+                const rubberLabelX = pivotX + platLength * 0.5;
+                const rubberLabelY = baseY + 25 * sc;
+                ctx.fillStyle = 'rgba(200,200,220,0.7)';
+                ctx.font = `${Math.max(6, 8 * sc)}px "Inter", sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('RUBBER DAM', rubberLabelX, rubberLabelY);
+            }
+        }
+
+        // ==================== DOWNLOAD PDF ====================
+        function downloadPDF() {
+            if (typeof html2pdf === 'undefined') {
+                showToast('danger', 'Library PDF belum termuat, cek koneksi internet');
+                addLog('danger', 'Gagal download PDF: html2pdf tidak tersedia');
+                return;
+            }
+
+            const now = new Date().toLocaleString('id-ID', {
+                day: '2-digit', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+
+            const wrapper = document.createElement('div');
+            wrapper.style.padding = '24px';
+            wrapper.style.background = '#ffffff';
+            wrapper.style.color = '#000000';
+            wrapper.style.fontFamily = 'Arial, Helvetica, sans-serif';
+            wrapper.style.width = '100%';
+            wrapper.style.maxWidth = '760px';
+
+            const statusComp = state.deflatingMode ? 'SUSUT' : (state.compressorOn ? 'ON' : 'OFF');
+
+            wrapper.innerHTML = `
+                <div style="border-bottom:2px solid #0077b6;padding-bottom:10px;margin-bottom:16px;">
+                    <h1 style="margin:0;font-size:20px;color:#0077b6;">LAPORAN SISTEM RUBBER DAM</h1>
+                    <p style="margin:4px 0 0;font-size:12px;color:#555;">Monitoring & Kontrol Otomatis</p>
+                    <p style="margin:4px 0 0;font-size:11px;color:#777;">Dicetak: ${now}</p>
+                </div>
+
+                <h2 style="font-size:14px;margin:0 0 8px;color:#222;">1. Data Sensor &amp; Status</h2>
+                <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:18px;">
+                    <thead>
+                        <tr style="background:#e3f2fd;">
+                            <th style="border:1px solid #999;padding:6px;text-align:left;">Parameter</th>
+                            <th style="border:1px solid #999;padding:6px;text-align:right;">Nilai</th>
+                            <th style="border:1px solid #999;padding:6px;text-align:left;">Satuan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="border:1px solid #999;padding:6px;">Tekanan Rubber (Sensor Tekanan Udara)</td><td style="border:1px solid #999;padding:6px;text-align:right;"><b>${state.pressure.toFixed(2)}</b></td><td style="border:1px solid #999;padding:6px;">Bar</td></tr>
+                        <tr><td style="border:1px solid #999;padding:6px;">Ketinggian Air Hulu (Sensor Air)</td><td style="border:1px solid #999;padding:6px;text-align:right;"><b>${state.waterLevel.toFixed(2)}</b></td><td style="border:1px solid #999;padding:6px;">Meter</td></tr>
+                        <tr><td style="border:1px solid #999;padding:6px;">Kekuatan Rubber</td><td style="border:1px solid #999;padding:6px;text-align:right;">${state.rubberStrength.toFixed(1)}</td><td style="border:1px solid #999;padding:6px;">%</td></tr>
+                        <tr><td style="border:1px solid #999;padding:6px;">Ketinggian Rubber</td><td style="border:1px solid #999;padding:6px;text-align:right;">${state.rubberHeight.toFixed(2)}</td><td style="border:1px solid #999;padding:6px;">Meter</td></tr>
+                        <tr><td style="border:1px solid #999;padding:6px;">Status Kompresor</td><td style="border:1px solid #999;padding:6px;text-align:right;">${statusComp}</td><td style="border:1px solid #999;padding:6px;">-</td></tr>
+                        <tr><td style="border:1px solid #999;padding:6px;">Mode Operasi</td><td style="border:1px solid #999;padding:6px;text-align:right;">${state.mode.toUpperCase()}</td><td style="border:1px solid #999;padding:6px;">-</td></tr>
+                        <tr><td style="border:1px solid #999;padding:6px;">Threshold Min (ON)</td><td style="border:1px solid #999;padding:6px;text-align:right;">${state.thresholdMin.toFixed(1)}</td><td style="border:1px solid #999;padding:6px;">Bar</td></tr>
+                        <tr><td style="border:1px solid #999;padding:6px;">Threshold Max (OFF)</td><td style="border:1px solid #999;padding:6px;text-align:right;">${state.thresholdMax.toFixed(1)}</td><td style="border:1px solid #999;padding:6px;">Bar</td></tr>
+                    </tbody>
+                </table>
+
+                <h2 style="font-size:14px;margin:0 0 8px;color:#222;">2. Log Aktivitas (50 Terakhir)</h2>
+                <table style="width:100%;border-collapse:collapse;font-size:10px;">
+                    <thead>
+                        <tr style="background:#e3f2fd;">
+                            <th style="border:1px solid #999;padding:5px;text-align:left;width:70px;">Waktu</th>
+                            <th style="border:1px solid #999;padding:5px;text-align:left;width:60px;">Tipe</th>
+                            <th style="border:1px solid #999;padding:5px;text-align:left;">Pesan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${state.logs.slice(-50).map(l => `
+                            <tr>
+                                <td style="border:1px solid #999;padding:4px;">${l.time}</td>
+                                <td style="border:1px solid #999;padding:4px;">${l.type}</td>
+                                <td style="border:1px solid #999;padding:4px;">${l.message}</td>
+                            </tr>`).join('') || '<tr><td colspan="3" style="border:1px solid #999;padding:6px;text-align:center;">Tidak ada log</td></tr>'}
+                    </tbody>
+                </table>
+
+                <p style="font-size:10px;color:#888;margin-top:18px;text-align:center;">
+                    — Laporan dihasilkan otomatis oleh Sistem Monitoring Rubber Dam —
+                </p>
+            `;
+
+            document.body.appendChild(wrapper);
+
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            const opt = {
+                margin: 10,
+                filename: `rubber-dam-report-${timestamp}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            addLog('info', 'Menyiapkan file PDF...');
+            html2pdf().set(opt).from(wrapper).save().then(() => {
+                addLog('success', 'Download PDF berhasil');
+                showToast('success', 'PDF berhasil diunduh');
+                wrapper.remove();
+            }).catch(err => {
+                addLog('danger', 'Gagal membuat PDF: ' + err.message);
+                showToast('danger', 'Gagal download PDF');
+                wrapper.remove();
+            });
+        }
+
+        // ==================== DOWNLOAD EXCEL ====================
+        function downloadExcel() {
+            if (typeof XLSX === 'undefined') {
+                showToast('danger', 'Library Excel belum termuat, cek koneksi internet');
+                addLog('danger', 'Gagal download Excel: SheetJS tidak tersedia');
+                return;
+            }
+
+            const now = new Date().toLocaleString('id-ID');
+            const statusComp = state.deflatingMode ? 'SUSUT' : (state.compressorOn ? 'ON' : 'OFF');
+
+            const sensorRows = [
+                ['LAPORAN SISTEM RUBBER DAM'],
+                ['Waktu Export', now],
+                [],
+                ['Parameter', 'Nilai', 'Satuan'],
+                ['Tekanan Rubber (Sensor Tekanan Udara)', parseFloat(state.pressure.toFixed(2)), 'Bar'],
+                ['Ketinggian Air Hulu (Sensor Air)', parseFloat(state.waterLevel.toFixed(2)), 'Meter'],
+                ['Kekuatan Rubber', parseFloat(state.rubberStrength.toFixed(1)), '%'],
+                ['Ketinggian Rubber', parseFloat(state.rubberHeight.toFixed(2)), 'Meter'],
+                ['Status Kompresor', statusComp, '-'],
+                ['Mode Operasi', state.mode.toUpperCase(), '-'],
+                ['Threshold Min (ON)', parseFloat(state.thresholdMin.toFixed(1)), 'Bar'],
+                ['Threshold Max (OFF)', parseFloat(state.thresholdMax.toFixed(1)), 'Bar'],
+            ];
+            const ws1 = XLSX.utils.aoa_to_sheet(sensorRows);
+            ws1['!cols'] = [{ wch: 38 }, { wch: 18 }, { wch: 12 }];
+
+            const logRows = [['Waktu', 'Tipe', 'Pesan']];
+            state.logs.forEach(l => logRows.push([l.time, l.type, l.message]));
+            const ws2 = XLSX.utils.aoa_to_sheet(logRows);
+            ws2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 80 }];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws1, 'Data Sensor');
+            XLSX.utils.book_append_sheet(wb, ws2, 'Log Aktivitas');
+
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            const filename = `rubber-dam-data-${timestamp}.xlsx`;
+
+            try {
+                XLSX.writeFile(wb, filename);
+                addLog('success', 'Download Excel berhasil: ' + filename);
+                showToast('success', 'Excel berhasil diunduh');
+            } catch (err) {
+                addLog('danger', 'Gagal membuat Excel: ' + err.message);
+                showToast('danger', 'Gagal download Excel');
+            }
+        }
+
+        // ==================== GAME LOOP ====================
+        let lastTimestamp = performance.now();
+
+        function gameLoop(ts) {
+            const dt = Math.min((ts - lastTimestamp) / 1000, 0.3);
+            lastTimestamp = ts;
+
+            updatePressure(dt);
+            if (state.mode === 'auto' && !state.deflatingMode) evaluateAutoLogic();
+
+            updateUI();
+            drawDam();
+            $timeDisplay.textContent = new Date().toLocaleString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Redraw canvas saat resize (debounced)
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                drawDam();
+            }, 100);
+        });
+
+        // Redraw saat orientasi berubah (mobile)
+        window.addEventListener('orientationchange', () => {
+            setTimeout(drawDam, 200);
+        });
+
+        // ==================== INISIALISASI ====================
+        updateThresholdLabels();
+        setMode('auto');
+        updateUI();
+        drawDam();
+        addLog('info', 'Sistem Rubber Dam siap');
+        addLog('info', 'Threshold ON: ' + state.thresholdMin.toFixed(1) + ' Bar | OFF: ' + state.thresholdMax.toFixed(1) + ' Bar');
+        addLog('info', 'Kamera siap diaktifkan (tombol AKTIFKAN)');
+        addLog('info', 'Fitur ekspor PDF & Excel siap digunakan');
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
