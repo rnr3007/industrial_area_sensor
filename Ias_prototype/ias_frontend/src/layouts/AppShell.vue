@@ -25,6 +25,26 @@ const timeLabel = computed(() =>
   })
 );
 
+// Session countdown, derived straight from the token's own `exp` claim -
+// ticks off the same 1s clock timer below rather than a second interval.
+const secondsLeft = computed(() => {
+  if (!auth.expiresAt) return null;
+  return Math.max(0, Math.round((auth.expiresAt - now.value.getTime()) / 1000));
+});
+
+const sessionLabel = computed(() => {
+  if (secondsLeft.value === null) return '--:--';
+  const m = Math.floor(secondsLeft.value / 60)
+    .toString()
+    .padStart(2, '0');
+  const s = (secondsLeft.value % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+});
+
+// Under a minute left - give the operator a visual heads-up before it logs
+// them out mid-task.
+const sessionLow = computed(() => secondsLeft.value !== null && secondsLeft.value <= 60);
+
 async function logout() {
   const ok = await confirm.ask({
     title: 'Sign out',
@@ -38,12 +58,23 @@ async function logout() {
   router.push({ name: 'login' });
 }
 
+let loggedOutForExpiry = false;
+
 onMounted(() => {
   // The socket connection itself is established by the auth store on
   // login/restore; this just wires the dam store's listeners onto it.
   dam.wireSocket();
   clockTimer = setInterval(() => {
     now.value = new Date();
+
+    // Auto-logout the moment the session token expires - no confirmation
+    // prompt (there is nothing left to confirm, the server will reject the
+    // token anyway), just a clean drop back to the login screen.
+    if (!loggedOutForExpiry && secondsLeft.value === 0) {
+      loggedOutForExpiry = true;
+      auth.clear();
+      router.push({ name: 'login', query: { expired: '1' } });
+    }
   }, 1000);
 });
 
@@ -75,6 +106,13 @@ onBeforeUnmount(() => {
         {{ dam.socketConnected ? 'TERHUBUNG' : 'TERPUTUS' }}
       </span>
       <span class="time-display">{{ timeLabel }}</span>
+      <span
+        class="time-display session-countdown"
+        :class="{ low: sessionLow }"
+        :title="sessionLow ? 'Session expiring soon - sign in again to stay logged in' : 'Time left in this session'"
+      >
+        ⏳ {{ sessionLabel }}
+      </span>
       <div class="user-chip">
         <div class="who">
           <div class="name">{{ auth.user?.name }}</div>
@@ -87,3 +125,14 @@ onBeforeUnmount(() => {
 
   <RouterView />
 </template>
+
+<style scoped>
+.session-countdown {
+  transition: color 0.2s, border-color 0.2s;
+}
+.session-countdown.low {
+  color: var(--accent-red);
+  border-color: rgba(255, 61, 79, 0.4);
+  animation: pulse-deflate 1s infinite;
+}
+</style>

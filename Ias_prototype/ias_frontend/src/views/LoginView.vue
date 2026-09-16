@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
+const route = useRoute();
 const email = ref('');
 const sent = ref(false);
 
@@ -26,6 +28,10 @@ async function submit() {
 
       <h2>Operator sign in</h2>
       <p class="lede">Enter your email and we'll send you a one-time sign-in link.</p>
+
+      <div v-if="route.query.expired" class="alert-box info">
+        Your session expired. Sign in again to continue.
+      </div>
 
       <div v-if="sent" class="alert-box success">
         If that email is registered, a sign-in link has been sent. Check your inbox (and the

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import api, { setUnauthorizedHandler } from '@/api/client';
 import { connectSocket, disconnectSocket } from '@/services/socket';
+import { getTokenExpiryMs } from '@/utils/jwt';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -15,7 +16,10 @@ export const useAuthStore = defineStore('auth', {
     role: (state) => state.user?.role || '',
     isAdmin: (state) => state.user?.role === 'admin',
     // Guest operators get a read-only dashboard.
-    canControl: (state) => ['admin', 'operator'].includes(state.user?.role)
+    canControl: (state) => ['admin', 'operator'].includes(state.user?.role),
+    // Epoch-ms the current session token expires at, straight from its own
+    // `exp` claim - no separate "session started" bookkeeping needed.
+    expiresAt: (state) => getTokenExpiryMs(state.token)
   },
 
   actions: {

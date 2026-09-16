@@ -30,6 +30,10 @@ async function submit() {
       <h2>Admin sign in</h2>
       <p class="lede">Sign in with your administrator email and password.</p>
 
+      <div v-if="route.query.expired" class="alert-box info">
+        Your session expired. Sign in again to continue.
+      </div>
+
       <form @submit.prevent="submit">
         <div v-if="auth.error" class="alert-box error">{{ auth.error }}</div>
         <label class="field">
