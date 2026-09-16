@@ -16,5 +16,5 @@ There's also `ias_prototype/`: a separate Rubber Dam monitoring/control stack
 above), which reuses `ias_prototype_origin/ias_simulate` for its device
 simulator.
 
-> This is an only for-fun repository XD
+> This is an only for-fun repository XD\
 > Whelp, but it also doesn't rule out the possibility to make it as my own reference in the future👀
