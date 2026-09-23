@@ -62,13 +62,13 @@ export function processReading({ currentMA, flowRate, totalLiters }) {
   if (wasDown) {
     setLinkConnected(true);
     emitLinkStatus(true);
-    log('success', 'ESP32: link established');
+    log('success', 'Device:  link established');
   }
 
   if (lastStatus !== status) {
-    if (status === 'IDLE') log('warn', `ESP32: no signal (${reading.currentMA} mA) -> IDLE`);
-    else if (status === 'OVER') log('warn', `ESP32: over range (${reading.currentMA} mA) -> OVER`);
-    else log('success', `ESP32: flow ${reading.flowRate} m3/h -> RUN`);
+    if (status === 'IDLE') log('warn', `Device:  no signal (${reading.currentMA} mA) -> IDLE`);
+    else if (status === 'OVER') log('warn', `Device:  over range (${reading.currentMA} mA) -> OVER`);
+    else log('success', `Device:  flow ${reading.flowRate} m3/h -> RUN`);
   }
   lastStatus = status;
 
@@ -82,7 +82,7 @@ function checkStaleness() {
   if (silentFor > config.device.linkTimeoutMs) {
     setLinkConnected(false);
     emitLinkStatus(false);
-    log('danger', `ESP32: no data for ${Math.round(silentFor / 1000)}s - link considered down`);
+    log('danger', `Device:  no data for ${Math.round(silentFor / 1000)}s - link considered down`);
     lastReceivedAt = 0; // so the next reading logs "link established" again
     lastStatus = null;
   }
