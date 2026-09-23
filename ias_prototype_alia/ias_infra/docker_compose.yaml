@@ -1,0 +1,172 @@
+# =============================================================================
+# Alia AUF750 - flow-meter monitoring (4-20mA current loop via ESP32)
+#
+#   docker compose -f docker_compose.yaml up -d --build
+#   open http://localhost:4560
+#
+# A fully self-contained stack - own network, own containers, own images,
+# own MongoDB, own ports - so it can run alongside ias_prototype and
+# ias_prototype_origin with zero shared state. No MQTT anywhere here: the
+# ESP32 pushes readings to this backend (POST /data, guarded by
+# DEVICE_API_KEY) rather than hosting its own server for us to poll - it's
+# typically on a LAN behind NAT and can always reach out, but can't easily
+# be reached from outside. The bundled alia_simulator (profile "simulator")
+# posts the same payload shape for local dev without hardware.
+# =============================================================================
+
+name: aliaproto
+
+services:
+  # ---------------------------------------------------------------------------
+  # MongoDB - user accounts only (auth/roles). A dedicated instance/volume.
+  # ---------------------------------------------------------------------------
+  alia_mongodb:
+    build:
+      context: ../ias_backend/mongo
+      dockerfile: Dockerfile
+    image: aliaproto/mongodb:1.0.0
+    container_name: alia_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-alia_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-alia_root_password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-alia}
+      MONGO_APP_DB: ${MONGO_DB:-alia}
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-alia_app}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-alia_app_password}
+    volumes:
+      - alia_mongo_data:/data/db
+      - alia_mongo_config:/data/configdb
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27019}:27017"
+    networks: [alia_net]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Backend - REST API + Socket.IO gateway + device ingest (POST /data). No
+  # MQTT, no TCP, no outbound polling - the ESP32 pushes to us.
+  # ---------------------------------------------------------------------------
+  alia_backend:
+    build:
+      context: ../ias_backend
+      dockerfile: Dockerfile
+    image: aliaproto/backend:1.0.0
+    container_name: alia_backend
+    restart: unless-stopped
+    depends_on:
+      alia_mongodb:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4110
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4560,http://localhost:5173}
+
+      DEVICE_API_KEY: ${DEVICE_API_KEY:-change-me-device-key}
+      LINK_TIMEOUT_MS: ${LINK_TIMEOUT_MS:-5000}
+      FLOW_IDLE_BELOW_MA: ${FLOW_IDLE_BELOW_MA:-3.5}
+      FLOW_OVER_ABOVE_MA: ${FLOW_OVER_ABOVE_MA:-21.0}
+
+      LOG_HISTORY_SIZE: ${LOG_HISTORY_SIZE:-200}
+      LOG_DIR: /app/logs
+
+      MONGO_URI: mongodb://${MONGO_APP_USERNAME:-alia_app}:${MONGO_APP_PASSWORD:-alia_app_password}@alia_mongodb:27017/${MONGO_DB:-alia}?authSource=${MONGO_DB:-alia}
+
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
+      JWT_SESSION_TTL: ${JWT_SESSION_TTL:-30m}
+      JWT_MAGIC_LINK_TTL: ${JWT_MAGIC_LINK_TTL:-10m}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:4560}
+
+      SMTP_SERVICE: ${SMTP_SERVICE:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-Alia AUF750 Monitoring <no-reply@ias.local>}
+
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@alia.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin#12345}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Administrator}
+    volumes:
+      # Bind mount so info.txt/error.txt land directly in ias_backend/logs/
+      # on the host - readable without docker exec/cp.
+      - ../ias_backend/logs:/app/logs
+    ports:
+      - "${BACKEND_PORT:-4110}:4110"
+    networks: [alia_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4110/api/health"]
+      interval: 20s
+      timeout: 6s
+      retries: 6
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Frontend - the monitoring console (nginx serving a static page), proxying
+  # /api and /socket.io to the backend.
+  # ---------------------------------------------------------------------------
+  alia_frontend:
+    build:
+      context: ../ias_frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-}
+    image: aliaproto/frontend:1.0.0
+    container_name: alia_frontend
+    restart: unless-stopped
+    depends_on:
+      alia_backend:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-4560}:80"
+    networks: [alia_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # ESP32 simulator - optional. POSTs the exact same payload shape the real
+  # device's (modified) firmware sends, so the backend has something to
+  # ingest without hardware. Point the real device's firmware at
+  # http://<this-host-or-domain>/data (or the published BACKEND_PORT
+  # directly) with a matching DEVICE_API_KEY and skip this service entirely
+  # once hardware is available.
+  #   enable with:  docker compose --profile simulator up -d
+  # ---------------------------------------------------------------------------
+  alia_simulator:
+    build:
+      context: ../esp32-simulator
+      dockerfile: Dockerfile
+    image: aliaproto/esp32-simulator:1.0.0
+    container_name: alia_simulator
+    restart: unless-stopped
+    profiles: [simulator]
+    depends_on:
+      alia_backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://alia_backend:4110
+      DEVICE_API_KEY: ${DEVICE_API_KEY:-change-me-device-key}
+      SAMPLE_INTERVAL_MS: ${SAMPLE_INTERVAL_MS:-1000}
+      FLOW_AT_4mA: ${FLOW_AT_4mA:-0.0}
+      FLOW_AT_20mA: ${FLOW_AT_20mA:-200.0}
+    networks: [alia_net]
+
+networks:
+  alia_net:
+    name: alia_net
+    driver: bridge
+
+volumes:
+  alia_mongo_data:
+  alia_mongo_config:

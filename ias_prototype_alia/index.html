@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a1a2f">
+<title>Alia AUF750 — Monitoring 4-20mA</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span class="brand-name">TOYA<span class="brand-acc">Teknologi</span></span>
+    </div>
+    <div class="topbar-right">
+      <span class="clock" id="clock">--:--:--</span>
+      <span class="pill" id="connPill">OFFLINE</span>
+    </div>
+  </header>
+
+  <section class="meter">
+    <div class="meter-head">
+      <span class="model">ALIA AUF750</span>
+      <span>4&ndash;20&nbsp;mA &middot; SHUNT 150&Omega;</span>
+    </div>
+
+    <div class="lcd" id="lcd">
+      <div class="lcd-row q1">
+        <span class="tag">Q</span>
+        <span class="digits">
+          <i class="ghost">8888.888</i>
+          <span class="val" id="flowM3H">0.000</span>
+        </span>
+        <span class="unit">m&sup3;/h</span>
+      </div>
+      <div class="sub" id="flowSub">0.000 L/min &nbsp;|&nbsp; 0.000 L/s</div>
+
+      <div class="lcd-sep"></div>
+
+      <div class="lcd-row q2">
+        <span class="tag">&Sigma;</span>
+        <span class="digits">
+          <i class="ghost">88888.888</i>
+          <span class="val" id="totalM3">0.000</span>
+        </span>
+        <span class="unit">m&sup3;</span>
+      </div>
+      <div class="sub" id="totalSub">0.00 Liter</div>
+
+      <div class="lcd-sep"></div>
+
+      <div class="lcd-status">
+        <span><span class="dot"></span><span class="run" id="runTxt">RUN</span></span>
+        <span id="status">CONNECTING...</span>
+        <span id="currMA">0.00 mA</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-excel" id="btnExcel" type="button">&#128229; Excel</button>
+      <button class="btn btn-pdf"   id="btnPdf"   type="button">&#128196; PDF</button>
+      <button class="btn btn-reset" id="btnReset" type="button">&#128465; Reset</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>
+      <span>Tren Debit &mdash; 60 data terakhir</span>
+      <span class="badge" id="logBadge">Log: 0 baris</span>
+    </h2>
+    <div class="chart-box"><canvas id="chartCanvas"></canvas></div>
+  </section>
+
+  <section class="panel">
+    <h2><span>Statistik Sesi</span><span class="badge" id="uptimeBadge">00:00:00</span></h2>
+    <div class="stats">
+      <div class="stat"><div class="lbl">Debit Min</div><div class="v" id="stMin">0.000</div><div class="u">m&sup3;/h</div></div>
+      <div class="stat"><div class="lbl">Debit Max</div><div class="v" id="stMax">0.000</div><div class="u">m&sup3;/h</div></div>
+      <div class="stat"><div class="lbl">Debit Rata&#8322;</div><div class="v" id="stAvg">0.000</div><div class="u">m&sup3;/h</div></div>
+      <div class="stat"><div class="lbl">Arus Rata&#8322;</div><div class="v" id="stIavg">0.00</div><div class="u">mA</div></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2><span>Log Terbaru</span><span class="badge" id="okBadge">OK 0 &middot; ERR 0</span></h2>
+    <div class="table-wrap">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th class="ctr">No</th>
+            <th>Waktu</th>
+            <th class="num">mA</th>
+            <th class="num">m&sup3;/h</th>
+            <th class="num">L/min</th>
+            <th class="num">Total L</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <tr class="empty"><td colspan="6">Belum ada data&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="footer">Toekang Air &mdash; Solusi Integrasi Sistem Pengelolaan Air</footer>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

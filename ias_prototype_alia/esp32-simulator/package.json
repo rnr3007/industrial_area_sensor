@@ -1,0 +1,15 @@
+{
+  "name": "alia-esp32-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Stands in for the real Alia AUF750 ESP32 device - posts the same POST /data payload the real firmware sends, so the backend has something to ingest without hardware.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

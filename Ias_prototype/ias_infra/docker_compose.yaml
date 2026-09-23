@@ -4,18 +4,29 @@
 #   docker compose -f docker_compose.yaml up -d --build
 #   open http://localhost:4546
 #
+# The backend is also reachable directly (bypassing the frontend's nginx
+# proxy) at http://api.rubberdam.local:4100 - add this to your hosts file
+# first (requires admin rights, Claude Code cannot do this for you):
+#   127.0.0.1  api.rubberdam.local
+# On Windows: C:\Windows\System32\drivers\etc\hosts
+#
 # A self-contained sibling stack to the main IAS platform
 # (ias_prototype_origin/ias_infra/), on its own ports/network/project name/
 # database so both can run at the same time with zero shared state. Reuses
 # two things from the main platform instead of duplicating them:
-#   - the MQTT broker image (../../ias_prototype_origin/ias_backend/mqtt) -
-#     generic, no IAS-specific topic logic baked in.
-#   - the ../../ias_prototype_origin/ias_simulate package as the device
-#     simulator, running its rubber-dam-simulator.js script instead of the
-#     FMC125 one.
+#   - the MQTT broker image (<ORIGIN_DIR>/ias_backend/mqtt) - generic, no
+#     IAS-specific topic logic baked in.
+#   - the <ORIGIN_DIR>/ias_simulate package as the device simulator, running
+#     its rubber-dam-simulator.js script instead of the FMC125 one.
 #
-# Build contexts point relative to this file, so run compose from this
-# directory.
+# ORIGIN_DIR (set in .env) is where the main IAS platform checkout lives,
+# relative to this file - default ../../ias_prototype_origin assumes both
+# were cloned as siblings under the same parent directory. Override it if
+# your layout differs (e.g. a different folder name, or it living elsewhere
+# entirely - an absolute path works too).
+#
+# Build contexts otherwise point relative to this file, so run compose from
+# this directory.
 # =============================================================================
 
 name: iasproto
@@ -58,7 +69,7 @@ services:
   # ---------------------------------------------------------------------------
   iasproto_mqtt:
     build:
-      context: ../../ias_prototype_origin/ias_backend/mqtt
+      context: ${ORIGIN_DIR:-../../ias_prototype_origin}/ias_backend/mqtt
       dockerfile: Dockerfile
     image: iasproto/mqtt-broker:1.0.0
     container_name: iasproto_mqtt
@@ -104,7 +115,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4100
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4546,http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4546,http://localhost:5173,http://api.rubberdam.local:4100}
 
       MQTT_URL: mqtt://iasproto_mqtt:1883
       MQTT_USERNAME: ${MQTT_SERVICE_USER:-rubberdam_service}
@@ -181,7 +192,7 @@ services:
   # ---------------------------------------------------------------------------
   iasproto_simulator:
     build:
-      context: ../../ias_prototype_origin/ias_simulate
+      context: ${ORIGIN_DIR:-../../ias_prototype_origin}/ias_simulate
       dockerfile: Dockerfile
     image: iasproto/simulator:1.0.0
     container_name: iasproto_simulator
