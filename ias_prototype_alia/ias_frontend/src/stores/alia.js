@@ -3,6 +3,13 @@ import { onSocket, getSocket } from '@/services/socket';
 
 const LOG_LIMIT = 200;
 
+function pad2(n) {
+  return (n < 10 ? '0' : '') + n;
+}
+function fmtTimestamp(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
 export const useAliaStore = defineStore('alia', {
   state: () => ({
     // Device-owned reading - always overwritten by the next poll result from
@@ -35,7 +42,7 @@ export const useAliaStore = defineStore('alia', {
 
   actions: {
     addLog(type, message) {
-      const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
+      const time = fmtTimestamp(new Date());
       this.logs.push({ time, type, message });
       if (this.logs.length > LOG_LIMIT) this.logs.shift();
     },

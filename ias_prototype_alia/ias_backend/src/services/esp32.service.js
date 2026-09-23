@@ -26,8 +26,15 @@ function classify(currentMA) {
   return 'RUN';
 }
 
+function pad2(n) {
+  return (n < 10 ? '0' : '') + n;
+}
+function fmtTimestamp(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
 function log(type, message) {
-  const entry = { time: new Date().toLocaleTimeString('id-ID', { hour12: false }), type, message };
+  const entry = { time: fmtTimestamp(new Date()), type, message };
   pushLog(entry);
   emitLog(entry);
 }

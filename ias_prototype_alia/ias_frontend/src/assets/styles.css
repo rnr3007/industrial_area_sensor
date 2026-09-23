@@ -25,6 +25,7 @@
     --status-run: #f0c419;
     --status-idle: #ffb84d;
     --status-err: #ff6b6b;
+    --status-online: #4ade80;
 
     --glow-yellow: 0 0 10px rgba(240, 196, 25, 0.5);
     --glow-yellow-soft: 0 0 8px rgba(232, 176, 7, 0.45);
@@ -173,7 +174,7 @@ a { color: var(--accent-yellow-bright); }
     letter-spacing: 0.4px; white-space: nowrap;
     background: var(--bg-card); color: var(--accent-yellow-bright); border: 1px solid var(--border);
 }
-.badge-active { background: rgba(240, 196, 25, 0.12); color: var(--status-run); border-color: rgba(240, 196, 25, 0.35); }
+.badge-active { background: rgba(74, 222, 128, 0.12); color: var(--status-online); border-color: rgba(74, 222, 128, 0.35); }
 .badge-standby { background: rgba(255, 184, 77, 0.12); color: var(--status-idle); border-color: rgba(255, 184, 77, 0.3); }
 .badge-danger { background: rgba(255, 107, 107, 0.12); color: var(--status-err); border-color: rgba(255, 107, 107, 0.3); }
 .badge-info { background: rgba(143, 180, 217, 0.12); color: var(--text-secondary); border-color: rgba(143, 180, 217, 0.3); }

@@ -2,17 +2,12 @@
 #include <HTTPClient.h>
 
 // ================= KONFIGURASI WIFI =================
-const char* ssid     = "<ssid>";
-const char* password = "<Password>";
+const char* ssid     = "<SSID>";
+const char* password = "<PASSWORD>";
 
 // ================= KONFIGURASI SERVER (Alia backend) =================
-// Backend sekarang menerima data yang di-POST oleh device ini, bukan
-// meng-host dashboard sendiri untuk di-poll. Arahkan ke IP/host backend
-// (ias_prototype_alia/ias_infra), port BACKEND_PORT (default 4110).
-const char* serverUrl   = "http://<backend-host>:4110/data";
-// Harus sama persis dengan DEVICE_API_KEY di backend (.env) - dikirim
-// sebagai header X-Device-Key, bukan lewat auth operator/JWT.
-const char* deviceApiKey = "<DEVICE_API_KEY>";
+const char* serverUrl   = "<API Endpoint>";
+const char* deviceApiKey = "<API Key>";
 
 // ================= KONFIGURASI 4-20mA =================
 const int   ADC_PIN             = 34;       // GPIO 34 (input only, ADC1_CH6)
@@ -26,9 +21,7 @@ const float FLOW_AT_4mA  = 0.0;     // Debit saat 4mA (Window M55)  [m3/h]
 const float FLOW_AT_20mA = 200.0;   // Debit saat 20mA (Window M56) [m3/h]
 
 // ================= INTERVAL =================
-const unsigned long SAMPLE_INTERVAL_MS = 1000;   // 1 detik - harus cocok
-                                                   // dengan asumsi LINK_TIMEOUT_MS
-                                                   // di backend (default 5x interval ini)
+const unsigned long SAMPLE_INTERVAL_MS = 1000;
 const int   ADC_SAMPLES = 30;                    // rata-rata 30 sampel
 
 // ================= VARIABEL =================
@@ -48,9 +41,6 @@ float readADCAverage() {
 }
 
 // ================= KIRIM DATA KE BACKEND =================
-// POST /data {"currentMA":..,"flowRate":..,"totalLiters":..} - payload yang
-// sama persis dengan yang dulu dikembalikan oleh endpoint GET /data lokal,
-// sekarang dikirim keluar alih-alih disajikan untuk di-poll.
 void postReading() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[WARN] WiFi terputus, skip pengiriman data.");

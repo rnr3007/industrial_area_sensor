@@ -14,17 +14,14 @@ const now = ref(new Date());
 let clockTimer = null;
 let loggedOutForExpiry = false;
 
-const timeLabel = computed(() =>
-  now.value.toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  })
-);
+function pad2(n) {
+  return (n < 10 ? '0' : '') + n;
+}
+
+const timeLabel = computed(() => {
+  const d = now.value;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+});
 
 const secondsLeft = computed(() => {
   if (!auth.expiresAt) return null;
@@ -91,7 +88,7 @@ onBeforeUnmount(() => {
 
     <div class="status-bar">
       <span class="badge" :class="alia.socketConnected ? 'badge-active' : 'badge-standby'">
-        {{ alia.socketConnected ? 'TERHUBUNG' : 'TERPUTUS' }}
+        {{ alia.socketConnected ? 'SOCKET TERHUBUNG' : 'SOCKET TERPUTUS' }}
       </span>
       <span class="time-display">{{ timeLabel }}</span>
       <span class="time-display" :class="{ low: sessionLow }" title="Time left in this session">

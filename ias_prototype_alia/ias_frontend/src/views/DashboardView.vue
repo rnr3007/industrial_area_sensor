@@ -32,7 +32,7 @@ const alia = useAliaStore();
       </p>
       <div class="row" style="gap: 8px; margin-bottom: 8px">
         <span class="badge" :class="alia.linkConnected ? 'badge-active' : 'badge-danger'">
-          {{ alia.linkConnected ? 'ESP32 TERHUBUNG' : 'ESP32 TERPUTUS' }}
+          {{ alia.linkConnected ? 'PERANGKAT TERHUBUNG' : 'PERANGKAT TERPUTUS' }}
         </span>
       </div>
       <table class="data">
