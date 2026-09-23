@@ -77,8 +77,8 @@ onBeforeUnmount(() => {
     <div class="logo-area">
       <div class="logo-icon"></div>
       <div class="logo-text">
-        <h1>ALIA AUF750</h1>
-        <div class="subtitle">Flow Meter Monitoring</div>
+        <h1>TOYA<span class="brand-acc">Teknologi</span></h1>
+        <div class="subtitle">Alia AUF750 &middot; Flow Meter Monitoring</div>
       </div>
     </div>
 

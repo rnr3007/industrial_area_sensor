@@ -22,7 +22,7 @@ const alia = useAliaStore();
 
       <ActivityLog />
 
-      <div class="footer-note">Toekang Air - Solusi Integrasi Sistem Pengelolaan Air</div>
+      <div class="footer-note">Toekang Air &mdash; Solusi Integrasi Sistem Pengelolaan Air</div>
     </div>
 
     <div class="panel">
