@@ -80,6 +80,15 @@ const config = {
   flow: {
     idleBelowMa: float(process.env.FLOW_IDLE_BELOW_MA, 3.5),
     overAboveMa: float(process.env.FLOW_OVER_ABOVE_MA, 21.0)
+  },
+
+  // The RTSP URL (with its embedded credentials) lives only in the
+  // alia_mediamtx container's own config - this backend never sees it. We
+  // only need MediaMTX's internal HLS address to proxy /api/cctv behind the
+  // same operator-JWT auth as the rest of /api, so the browser never talks
+  // to MediaMTX (or the camera) directly.
+  cctv: {
+    mediamtxUrl: process.env.MEDIAMTX_URL || 'http://alia_mediamtx:8888'
   }
 };
 

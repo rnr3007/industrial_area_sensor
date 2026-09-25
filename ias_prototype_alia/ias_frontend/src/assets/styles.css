@@ -217,6 +217,21 @@ a { color: var(--accent-yellow-bright); }
 canvas { width: 100%; height: 100%; display: block; border-radius: 6px; }
 
 /* =========================================================
+   CCTV
+   ========================================================= */
+.cctv-video-wrap {
+    position: relative; aspect-ratio: 16 / 9; width: 100%;
+    background: #000; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border);
+}
+.cctv-video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cctv-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(6, 16, 29, 0.75); color: var(--text-secondary);
+    font-size: 0.75rem; letter-spacing: 0.4px; text-align: center; padding: 12px;
+}
+
+/* =========================================================
    BUTTONS
    ========================================================= */
 .btn {

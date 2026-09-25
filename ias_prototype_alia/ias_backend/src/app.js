@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import config from './config/index.js';
 import routes from './routes/index.js';
 import dataRoutes from './routes/data.routes.js';
+import cctvRoutes from './routes/cctv.routes.js';
 import logger from './utils/logger.js';
 import { notFound, errorHandler } from './middleware/error.js';
 
@@ -25,6 +26,13 @@ export function createApp() {
       credentials: true
     })
   );
+  // Mounted before compression()/express.json()/morgan() on purpose:
+  // http-proxy-middleware streams the upstream (video) response by piping
+  // the raw res object directly, and compression() wraps res.write/res.end
+  // to buffer+gzip it - the two don't mix and can hang or corrupt a live
+  // HLS response. authenticate() still gates it (see cctv.routes.js).
+  app.use('/api/cctv', cctvRoutes);
+
   app.use(compression());
   app.use(express.json());
 

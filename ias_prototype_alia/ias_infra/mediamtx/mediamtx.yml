@@ -1,0 +1,33 @@
+# MediaMTX pulls the on-site camera's RTSP stream (CCTV_RTSP_URL, set in
+# ias_infra/.env - never committed) and re-serves it as HLS on the internal
+# network only. Nothing outside this Docker network ever sees this container
+# directly - the backend's /api/cctv proxy (cctv.routes.js) is the only path
+# in, gated by the operator JWT.
+logLevel: info
+
+# Only HLS is enabled - this dashboard doesn't need RTSP/WebRTC/SRT publishing
+# or sub-second latency, and every unused protocol is one less thing exposed.
+rtsp: no
+rtmp: no
+webrtc: no
+srt: no
+
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigins: ['*']
+# fmp4, not mpegts - the mpegts variant only supports H264, and this camera
+# streams H265.
+hlsVariant: fmp4
+hlsSegmentCount: 6
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 50M
+
+# `source` is intentionally left unset here - MediaMTX supports overriding
+# any config value via an env var named MTX_<SECTION>_<KEY> (uppercased,
+# dots -> underscores). The compose file sets MTX_PATHS_CCTV_SOURCE from
+# CCTV_RTSP_URL, so the credential-bearing URL never has to sit in this
+# (committed) file at all - only in .env, which is gitignored.
+paths:
+  cctv:
+    sourceOnDemand: no

@@ -48,6 +48,26 @@ services:
       start_period: 30s
 
   # ---------------------------------------------------------------------------
+  # MediaMTX - pulls the on-site CCTV camera's RTSP stream (CCTV_RTSP_URL,
+  # credentials included) and re-serves it as HLS, internal-network-only. Not
+  # published to the host - only alia_backend can reach it, and only after
+  # authenticate() lets a request through (see ../ias_backend/src/routes/
+  # cctv.routes.js). The camera itself must be reachable from wherever this
+  # Docker host runs (on-site LAN, VPN, or a port-forward/DDNS into the site).
+  # ---------------------------------------------------------------------------
+  alia_mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: alia_mediamtx
+    restart: unless-stopped
+    environment:
+      # MediaMTX's env-var config-override convention (MTX_<SECTION>_<KEY>),
+      # not interpolated into mediamtx.yml - see the comment there.
+      MTX_PATHS_CCTV_SOURCE: ${CCTV_RTSP_URL:-}
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    networks: [alia_net]
+
+  # ---------------------------------------------------------------------------
   # Backend - REST API + Socket.IO gateway + device ingest (POST /data). No
   # MQTT, no TCP, no outbound polling - the ESP32 pushes to us.
   # ---------------------------------------------------------------------------
@@ -61,10 +81,13 @@ services:
     depends_on:
       alia_mongodb:
         condition: service_healthy
+      alia_mediamtx:
+        condition: service_started
     environment:
       NODE_ENV: production
       PORT: 4110
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4560,http://localhost:5173}
+      MEDIAMTX_URL: http://alia_mediamtx:8888
 
       DEVICE_API_KEY: ${DEVICE_API_KEY:-change-me-device-key}
       LINK_TIMEOUT_MS: ${LINK_TIMEOUT_MS:-5000}
