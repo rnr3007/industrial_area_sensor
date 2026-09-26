@@ -3,13 +3,6 @@ import { onSocket, getSocket } from '@/services/socket';
 
 const LOG_LIMIT = 200;
 
-function pad2(n) {
-  return (n < 10 ? '0' : '') + n;
-}
-function fmtTimestamp(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-}
-
 export const useAliaStore = defineStore('alia', {
   state: () => ({
     // Device-owned reading - always overwritten by the next poll result from
@@ -42,8 +35,10 @@ export const useAliaStore = defineStore('alia', {
 
   actions: {
     addLog(type, message) {
-      const time = fmtTimestamp(new Date());
-      this.logs.push({ time, type, message });
+      // Raw ISO, same shape as server-originated entries (see the backend's
+      // esp32.service.js log()) - formatted into the viewer's own local
+      // timezone only at render time, in ActivityLog.vue.
+      this.logs.push({ time: new Date().toISOString(), type, message });
       if (this.logs.length > LOG_LIMIT) this.logs.shift();
     },
 

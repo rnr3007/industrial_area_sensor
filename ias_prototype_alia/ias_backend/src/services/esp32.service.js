@@ -15,6 +15,9 @@
 import config from '../config/index.js';
 import { setLinkConnected, setReading, pushLog } from '../state.js';
 import { emitReading, emitLog, emitLinkStatus } from './realtime.service.js';
+import Reading from '../models/Reading.js';
+import ActivityLog from '../models/ActivityLog.js';
+import logger from '../utils/logger.js';
 
 let watchdogTimer = null;
 let lastStatus = null; // 'RUN' | 'IDLE' | 'OVER'
@@ -26,17 +29,24 @@ function classify(currentMA) {
   return 'RUN';
 }
 
-function pad2(n) {
-  return (n < 10 ? '0' : '') + n;
-}
-function fmtTimestamp(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-}
-
+// Raw ISO, not a pre-formatted string - this runs inside a container whose
+// system clock is UTC (no TZ set), so formatting "now" here would bake the
+// server's UTC time into the log line regardless of who's actually viewing
+// the dashboard. ActivityLog.vue formats this into the viewer's own local
+// timezone at render time instead, via new Date(l.time) + fmtTimestamp().
 function log(type, message) {
-  const entry = { time: fmtTimestamp(new Date()), type, message };
+  const entry = { time: new Date().toISOString(), type, message };
   pushLog(entry);
   emitLog(entry);
+
+  // Fire-and-forget, same pattern as processReading()'s Reading.create()
+  // below - the live in-memory log/socket push above already happened, so
+  // a slow or failed write here shouldn't hold up anything. Uses the plain
+  // file/console logger (not log() itself) to report a failure, since
+  // calling back into log() here could recurse if Mongo stays down.
+  ActivityLog.create({ type, message }).catch((err) => {
+    logger.error(`Failed to store activity log entry: ${err.message}`);
+  });
 }
 
 /** Called by the /data route for every reading the device pushes. */
@@ -58,6 +68,19 @@ export function processReading({ currentMA, flowRate, totalLiters }) {
 
   setReading(reading);
   emitReading(reading);
+
+  // Fire-and-forget: the device gets its ack and connected browsers get the
+  // live update regardless of Mongo latency/availability. A write failure
+  // is surfaced as an activity-log entry rather than failing the request -
+  // losing one row of history shouldn't make the device think POST /data
+  // itself is broken.
+  // `ts` is left out here so Mongoose's own `timestamps` option stamps it,
+  // rather than relying on the plugin's undocumented handling of a
+  // pre-supplied value.
+  const { ts: _ts, ...readingFields } = reading;
+  Reading.create(readingFields).catch((err) => {
+    log('danger', `Device: failed to store reading - ${err.message}`);
+  });
 
   if (wasDown) {
     setLinkConnected(true);
