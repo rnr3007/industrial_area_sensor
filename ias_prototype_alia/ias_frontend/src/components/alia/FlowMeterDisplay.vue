@@ -27,7 +27,7 @@ const statusLabel = computed(() => {
 </script>
 
 <template>
-  <div class="meter">
+  <div class="panel meter">
     <div class="meter-head">
       <span class="model">ALIA AUF750</span>
       <span>TOYA Teknologi</span>

@@ -143,7 +143,7 @@ a { color: var(--accent-yellow-bright); }
    ========================================================= */
 .main-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+    place-items: center;
     gap: 16px;
     padding: 14px max(18px, var(--safe-right)) calc(14px + var(--safe-bottom)) max(18px, var(--safe-left));
     max-width: 1400px;
@@ -162,6 +162,7 @@ a { color: var(--accent-yellow-bright); }
     padding: 16px 18px;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     min-width: 0;
+    max-width: 720px;
 }
 .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
 .panel-title {

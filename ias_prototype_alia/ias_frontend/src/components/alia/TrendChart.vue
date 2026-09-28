@@ -130,7 +130,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="chart-box">
-    <canvas ref="canvasRef"></canvas>
+  <div class="panel" style="margin-top: 12px">
+    <div class="panel-header">
+      <span class="panel-title">Tren Debit &mdash; {{ alia.maxTrendPoints }} data terakhir</span>
+      <span class="badge">Log: {{ alia.readingLog.length }} baris</span>
+    </div>
+    <div class="chart-box">
+      <canvas ref="canvasRef"></canvas>
+    </div>
   </div>
 </template>
